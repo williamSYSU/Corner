@@ -6,6 +6,7 @@ pretrainmodel/
 embed/
 data/
 venv/
+.idea/
 
 # C extensions
 *.so
