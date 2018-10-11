@@ -2,6 +2,10 @@
 __pycache__/
 *.py[cod]
 *$py.class
+pretrainmodel/
+embed/
+data/
+venv/
 
 # C extensions
 *.so
