@@ -1,9 +1,10 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-import numpy as np
-from model.Modules import ScaledDotProductAttention
+
+import config
+from layers.scale_dot_prod_attn import ScaledDotProductAttention
 
 
 class MultiHeadAttention(nn.Module):
@@ -20,6 +21,7 @@ class MultiHeadAttention(nn.Module):
         self.softmax = nn.Softmax(dim=2)
         self.fc = nn.Linear(n_head * d_input, d_input)
         self.layer_norm = nn.LayerNorm(d_input)
+        self.tanh = nn.Tanh()
 
     def forward(self, input):
         batch_size = len(input)
@@ -36,7 +38,7 @@ class MultiHeadAttention(nn.Module):
 
         q = torch.unsqueeze(q, dim=1).expand(-1, len_input, -1, -1)
         k = torch.unsqueeze(k, dim=2).expand(-1, -1, len_input, -1)
-        kq = F.tanh(self._score(torch.cat((k, q), dim=-1)))
+        kq = self.tanh(self._score(torch.cat((k, q), dim=-1)))
 
         score = F.softmax(kq, dim=-1).squeeze(3)
         output = torch.bmm(score, v)
@@ -53,17 +55,18 @@ class MultiHeadAttention(nn.Module):
 class PositionwiseFeedForward(nn.Module):
     ''' A two-feed-forward-layer module '''
 
-    def __init__(self, d_in, d_hid, dropout=0.1):
+    def __init__(self, d_in, d_hid):
         super().__init__()
-        self.w_1 = nn.Conv1d(d_in, d_hid, 1) # position-wise
-        self.w_2 = nn.Conv1d(d_hid, d_in, 1) # position-wise
+        self.w_1 = nn.Conv1d(d_in, d_hid, 1)  # position-wise
+        self.w_2 = nn.Conv1d(d_hid, d_in, 1)  # position-wise
         self.layer_norm = nn.LayerNorm(d_in)
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(config.dropout)
+        self.tanh = nn.Tanh()
 
     def forward(self, x):
         residual = x
         output = x.transpose(1, 2)
-        output = self.w_2(F.tanh(self.w_1(output)))
+        output = self.w_2(self.tanh(self.w_1(output)))
         output = output.transpose(1, 2)
         # output = self.dropout(output)
         output = self.layer_norm(output + residual)
@@ -71,19 +74,17 @@ class PositionwiseFeedForward(nn.Module):
 
 
 class NormalAttention(nn.Module):
-    def __init__(self, d_input, d_target, d_hidden, opt, dropout=0.1):
+    def __init__(self, d_input, d_target, d_hidden):
         super(NormalAttention, self).__init__()
-        self.d_input = d_input
-        self.d_target = d_target
-        self.d_hid = d_hidden
         self.attn = nn.Linear(d_input, d_hidden)
         self.attn_target = nn.Linear(d_target, d_hidden)
         # self.combine = nn.Linear(d_input + d_target, 1)
         self.attn_target_1 = nn.Linear(d_hidden + d_hidden, d_hidden)
         self.combine = nn.Linear(d_hidden, 1)
         self.softmax = nn.Softmax(dim=-1)
-        self.dropout = nn.Dropout(opt.dropout)
+        self.dropout = nn.Dropout(config.dropout)
         self.layer_norm = nn.LayerNorm(d_input)
+        self.tanh = nn.Tanh()
 
     def forward(self, input_seq, target_seq):
         combine_input = self.attn(input_seq)
@@ -98,8 +99,8 @@ class NormalAttention(nn.Module):
 
         # _combine_tar = combine_tar.view(1, 1, 1, 50).expand(-1, -1, len(input_seq[1]), -1)
 
-        # attn_out = F.tanh(_combine_tar + _combine_input)
-        attn_out = F.tanh(self.attn_target_1(torch.cat((_combine_input, _combine_tar), dim=-1)))
+        # attn_out = nn.Tanh(_combine_tar + _combine_input)
+        attn_out = self.tanh(self.attn_target_1(torch.cat((_combine_input, _combine_tar), dim=-1)))
         attn_out = self.dropout(self.combine(attn_out))
         attn_score = self.softmax(attn_out.squeeze(3))
         # attn_out = input_seq * attn
@@ -113,7 +114,7 @@ class NormalAttention(nn.Module):
 class MultiHeadAttentionDotProduct(nn.Module):
     ''' Multi-Head Attention module '''
 
-    def __init__(self, n_head, d_model, d_k, d_v, dropout=0.1):
+    def __init__(self, n_head, d_model, d_k, d_v):
         super().__init__()
 
         self.n_head = n_head
@@ -133,10 +134,9 @@ class MultiHeadAttentionDotProduct(nn.Module):
         self.fc = nn.Linear(n_head * d_v, d_model)
         nn.init.xavier_normal_(self.fc.weight)
 
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, q, k, v):
-
         d_k, d_v, n_head = self.d_k, self.d_v, self.n_head
 
         sz_b, len_q, _ = q.size()
@@ -149,21 +149,17 @@ class MultiHeadAttentionDotProduct(nn.Module):
         k = self.w_ks(k).view(sz_b, len_k, n_head, d_k)
         v = self.w_vs(v).view(sz_b, len_v, n_head, d_v)
 
-        q = q.permute(2, 0, 1, 3).contiguous().view(-1, len_q, d_k) # (n*b) x lq x dk
-        k = k.permute(2, 0, 1, 3).contiguous().view(-1, len_k, d_k) # (n*b) x lk x dk
-        v = v.permute(2, 0, 1, 3).contiguous().view(-1, len_v, d_v) # (n*b) x lv x dv
+        q = q.permute(2, 0, 1, 3).contiguous().view(-1, len_q, d_k)  # (n*b) x lq x dk
+        k = k.permute(2, 0, 1, 3).contiguous().view(-1, len_k, d_k)  # (n*b) x lk x dk
+        v = v.permute(2, 0, 1, 3).contiguous().view(-1, len_v, d_v)  # (n*b) x lv x dv
 
         # mask = mask.repeat(n_head, 1, 1) # (n*b) x .. x ..
         output, attn = self.attention(q, k, v)
 
         output = output.view(n_head, sz_b, len_q, d_v)
-        output = output.permute(1, 2, 0, 3).contiguous().view(sz_b, len_q, -1) # b x lq x (n*dv)
+        output = output.permute(1, 2, 0, 3).contiguous().view(sz_b, len_q, -1)  # b x lq x (n*dv)
 
         output = self.fc(output)
         output = self.layer_norm(output + residual)
 
         return output, attn
-
-
-
-

@@ -1,10 +1,7 @@
-from collections import namedtuple
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.autograd import Variable
 import pdb
+
+import torch
+from torch.autograd import Variable
 
 
 def to_scalar(var):
@@ -67,7 +64,7 @@ def log_sum_exp(vec_list):
 # return 1d tensor
 def add_broad(vec1, vec2):
     s_ = vec1.size()[0]
-    vec1 = vec1.expand(3, s_).transpose(0,1)
+    vec1 = vec1.expand(3, s_).transpose(0, 1)
     vec2 = vec2.expand(s_, 3)
     new_vec = vec1 + vec2
     return new_vec.view(-1)

@@ -1,20 +1,21 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-import model.attention_layer as attention
-from model.attention import DotProductAttention
-import model.Gate as gate
-from model.CRF import LinearCRF
+
+import config
+import layers.Gate as Gate
+import layers.attention_layer as attention
+from layers.CRF import LinearCRF
+from layers.attention import DotProductAttention
 
 MAX_LENGTH = 123
 device = torch.device("cpu")
 
 
 class WdeRnnEncoder(nn.Module):
-    def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect, opt, dropout=0.01):
+    def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect):
         super(WdeRnnEncoder, self).__init__()
-        self.opt = opt
         self.hidden_size = hidden_size
         self.blstm = nn.LSTM(hidden_size, 300, bidirectional=True, batch_first=True)
         self.embedded = nn.Embedding.from_pretrained(embed)
@@ -30,9 +31,9 @@ class WdeRnnEncoder(nn.Module):
         # self.slf_attention = attention.MultiHeadAttentionDotProduct(3, 600, 300, 300, 0.01)
         # self.Position_wise = attention.PositionwiseFeedForward(600, 600, 0.01)
         self.min_context = nn.Linear(300, 50)
-        self.attention = attention.NormalAttention(600, 50, 50, opt)
-        self.gate = gate.Gate(300, 50, 50, 300)
-        self.dropout = nn.Dropout(opt.dropout)
+        self.attention = attention.NormalAttention(600, 50, 50)
+        self.gate = Gate.Gate(300, 50, 50, 300)
+        self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, input, hidden):
         BATCH_SIZE = len(input)
@@ -94,14 +95,13 @@ class WdeRnnEncoder(nn.Module):
         return result
 
     def initHidden(self, BATCH_SIZE):
-        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=self.opt.device),
-                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=self.opt.device))
+        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=config.device),
+                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=config.device))
 
 
 class AttentionEncoder(nn.Module):
-    def __init__(self, hidden_size, output_size, context_dim, embed, opt, dropout=0.01):
+    def __init__(self, hidden_size, output_size, context_dim, embed):
         super(AttentionEncoder, self).__init__()
-        self.opt = opt
         self.slf_attention = attention.MultiHeadAttentionDotProduct(3, 300, 300, 300)
         # self.slf_attention = attention.MultiHeadAttention(300, 300, 300, 3)
         self.hidden_size = hidden_size
@@ -113,10 +113,10 @@ class AttentionEncoder(nn.Module):
         self.classifier_layer = nn.Linear(output_size, 2)
         self.softmax = nn.Softmax(dim=2)
         # self.slf_attention = attention.MultiHeadAttention(600, 3)
-        self.Position_wise = attention.PositionwiseFeedForward(300, 300, 0.01)
+        self.Position_wise = attention.PositionwiseFeedForward(300, 300)
         self.attention = attention.NormalAttention(300, 50, 50)
-        self.gate = gate.Gate(300, 50, 50, 300)
-        self.dropout = nn.Dropout(dropout)
+        self.gate = Gate.Gate(300, 50, 50, 300)
+        self.dropout = nn.Dropout(config.dropout)
         self.position_enc = nn.Embedding.from_pretrained(
             get_sinusoid_encoding_table(301, 300, padding_idx=200),
             freeze=True)
@@ -204,12 +204,10 @@ def get_sinusoid_encoding_table(n_position, d_hid, padding_idx=None):
 
 
 class PreTrainABAE(nn.Module):
-    def __init__(self, embed_dim, n_aspect, aspect_embedding, embed, opt):
-
+    def __init__(self, aspect_embedding, embed):
         super(PreTrainABAE, self).__init__()
-        self.opt = opt
-        self.embed_dim = embed_dim
-        self.n_aspect = n_aspect
+        self.embed_dim = config.embed_dim
+        self.n_aspect = config.n_aspect
         self.embedded = nn.Embedding.from_pretrained(embed)
 
         # query: global_content_embeding: [batch_size, embed_dim]
@@ -217,21 +215,21 @@ class PreTrainABAE(nn.Module):
         # value: inputs
         # mapping the input word embedding to global_content_embedding space
         self.sentence_embedding_attn = DotProductAttention(
-            d_query=embed_dim,
-            d_key=embed_dim,
-            d_value=embed_dim,
+            d_query=self.embed_dim,
+            d_key=self.embed_dim,
+            d_value=self.embed_dim,
             mapping_on="key"
         )
 
         # embed_dim => n_aspect
-        self.aspect_linear = nn.Linear(embed_dim, n_aspect)
+        self.aspect_linear = nn.Linear(self.embed_dim, self.n_aspect)
 
         # initialized with the centroids of clusters resulting from running k-means on word embeddings in corpus
         self.aspect_lookup_mat = nn.Parameter(data=aspect_embedding, requires_grad=True)
         # self.aspect_lookup_mat = nn.Parameter(torch.Tensor(n_aspect, embed_dim).double())
         # self.aspect_lookup_mat.data.uniform_(-1, 1)
 
-    def forward(self, inputs, eps=1e-06):
+    def forward(self, inputs, eps=config.epsilon):
         input_lengths = inputs[:, 0]
         inputs = inputs[:, 2:]
         input_index = inputs.long()
@@ -265,21 +263,20 @@ class PreTrainABAE(nn.Module):
         div = div.view(-1, 1)
 
         aspect_matrix = self.aspect_lookup_mat / div
-        reg = torch.sum(torch.matmul(aspect_matrix, aspect_matrix.permute(1, 0))**2 -
-                        torch.eye(24).double().to(self.opt.device))
+        reg = torch.sum(torch.matmul(aspect_matrix, aspect_matrix.permute(1, 0)) ** 2 -
+                        torch.eye(24).double().to(config.device))
 
         return predicted, self.aspect_lookup_mat.data, reg
 
-    def regular(self, eps=1e-06):
+    def regular(self, eps=config.epsilon):
         div = eps + torch.norm(self.aspect_lookup_mat, 2, -1)
         div = div.view(-1, 1)
         self.aspect_lookup_mat.data = self.aspect_lookup_mat / div
 
 
 class align_WdeRnnEncoder(nn.Module):
-    def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect, opt, dropout=0.01):
+    def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect):
         super(align_WdeRnnEncoder, self).__init__()
-        self.opt = opt
         self.hidden_size = hidden_size
         self.blstm = nn.LSTM(hidden_size, 300, bidirectional=True, batch_first=True)
         self.embedded = nn.Embedding.from_pretrained(embed)
@@ -294,9 +291,9 @@ class align_WdeRnnEncoder(nn.Module):
         # self.slf_attention = attention.MultiHeadAttentionDotProduct(3, 600, 300, 300, 0.01)
         # self.Position_wise = attention.PositionwiseFeedForward(600, 600, 0.01)
         self.min_context = nn.Linear(300, 50)
-        self.attention = attention.NormalAttention(600, 50, 50, opt)
-        self.gate = gate.Gate(300, 50, 50, 300)
-        self.dropout = nn.Dropout(opt.dropout)
+        self.attention = attention.NormalAttention(600, 50, 50)
+        self.gate = Gate.Gate(300, 50, 50, 300)
+        self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, input, hidden, update_aspect):
         BATCH_SIZE = len(input)
@@ -358,14 +355,13 @@ class align_WdeRnnEncoder(nn.Module):
         return result
 
     def initHidden(self, BATCH_SIZE):
-        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=self.opt.device),
-                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=self.opt.device))
+        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=config.device),
+                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=config.device))
 
 
 class EncoderCRF(nn.Module):
-    def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect, opt, dropout=0.01):
+    def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect):
         super(EncoderCRF, self).__init__()
-        self.opt = opt
         self.hidden_size = hidden_size
         self.blstm = nn.LSTM(hidden_size, 300, bidirectional=True, batch_first=True)
         self.embedded = nn.Embedding.from_pretrained(embed)
@@ -381,10 +377,10 @@ class EncoderCRF(nn.Module):
         # self.slf_attention = attention.MultiHeadAttentionDotProduct(3, 600, 300, 300, 0.01)
         # self.Position_wise = attention.PositionwiseFeedForward(600, 600, 0.01)
         self.min_context = nn.Linear(300, 50)
-        self.attention = attention.NormalAttention(600, 50, 50, opt)
-        self.gate = gate.Gate(300, 50, 50, 300)
-        self.dropout = nn.Dropout(opt.dropout)
-        self.crf = LinearCRF(opt)
+        self.attention = attention.NormalAttention(600, 50, 50)
+        self.gate = Gate.Gate(300, 50, 50, 300)
+        self.dropout = nn.Dropout(config.dropout)
+        self.crf = LinearCRF()
         self.feat2tri = nn.Linear(600, 2)
 
     def forward(self, input, hidden, style):
@@ -456,18 +452,18 @@ class EncoderCRF(nn.Module):
         return result
 
     def initHidden(self, BATCH_SIZE):
-        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=self.opt.device),
-                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=self.opt.device))
+        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=config.device),
+                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=config.device))
 
     def compute_scores(self, context):
         # feat_context = torch.cat([context, asp_v], 1) # sent_len * dim_sum
         feat_context = context  # sent_len * dim_sum
         tri_scores = self.feat2tri(feat_context)
         marginals = self.crf(tri_scores)
-        select_polarity = marginals[:, :,  1].unsqueeze(1)
+        select_polarity = marginals[:, :, 1].unsqueeze(1)
 
         marginals = marginals.transpose(1, 2)  # 2 * sent_len
-        sent_v = torch.bmm(select_polarity, context) # 1 * feat_dim
+        sent_v = torch.bmm(select_polarity, context)  # 1 * feat_dim
         # label_scores = self.feat2label(sent_v).squeeze(0)
 
         return sent_v, marginals
@@ -482,16 +478,15 @@ class EncoderCRF(nn.Module):
         best_seqs = self.crf.predict(tri_scores)
         # best_seqs = 1
 
-        sent_v = torch.bmm(select_polarity, context) # 1 * feat_dim
+        sent_v = torch.bmm(select_polarity, context)  # 1 * feat_dim
         # print(best_seqs)
 
         return sent_v, best_seqs
 
 
 class RealAspectExtract(nn.Module):
-    def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect, opt, dropout=0.01):
+    def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect):
         super(RealAspectExtract, self).__init__()
-        self.opt = opt
         self.hidden_size = hidden_size
         self.blstm = nn.LSTM(hidden_size, 300, bidirectional=True, batch_first=True)
         self.embedded = nn.Embedding.from_pretrained(embed)
@@ -507,10 +502,10 @@ class RealAspectExtract(nn.Module):
         # self.slf_attention = attention.MultiHeadAttentionDotProduct(3, 600, 300, 300, 0.01)
         # self.Position_wise = attention.PositionwiseFeedForward(600, 600, 0.01)
         self.min_context = nn.Linear(300, 50)
-        self.attention = attention.NormalAttention(600, 50, 50, opt)
-        self.gate = gate.Gate(300, 50, 50, 300)
-        self.dropout = nn.Dropout(opt.dropout)
-        self.crf = LinearCRF(opt)
+        self.attention = attention.NormalAttention(600, 50, 50)
+        self.gate = Gate.Gate(300, 50, 50, 300)
+        self.dropout = nn.Dropout(config.dropout)
+        self.crf = LinearCRF()
         self.feat2tri = nn.Linear(600, 2)
         self.crf2aspect = nn.Linear(600, 300)
 
@@ -600,18 +595,18 @@ class RealAspectExtract(nn.Module):
         return result
 
     def initHidden(self, BATCH_SIZE):
-        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=self.opt.device),
-                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=self.opt.device))
+        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=config.device),
+                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=config.device))
 
     def compute_scores(self, context):
         # feat_context = torch.cat([context, asp_v], 1) # sent_len * dim_sum
         feat_context = context  # sent_len * dim_sum
         tri_scores = self.feat2tri(feat_context)
         marginals = self.crf(tri_scores)
-        select_polarity = marginals[:, :,  1].unsqueeze(1)
+        select_polarity = marginals[:, :, 1].unsqueeze(1)
 
         marginals = marginals.transpose(1, 2)  # 2 * sent_len
-        sent_v = torch.bmm(select_polarity, context) # 1 * feat_dim
+        sent_v = torch.bmm(select_polarity, context)  # 1 * feat_dim
         # label_scores = self.feat2label(sent_v).squeeze(0)
 
         return sent_v, marginals
@@ -626,18 +621,18 @@ class RealAspectExtract(nn.Module):
         best_seqs = self.crf.predict(tri_scores)
         # best_seqs = 1
 
-        sent_v = torch.bmm(select_polarity, context) # 1 * feat_dim
+        sent_v = torch.bmm(select_polarity, context)  # 1 * feat_dim
         # print(best_seqs)
 
         return sent_v, best_seqs
 
-    def norm(self, aspect_context, eps=1e-06):
+    def norm(self, aspect_context, eps=config.epsilon):
         div = eps + torch.norm(aspect_context, 2, -1)
         div = div.view(-1, 1)
         aspect_context = aspect_context / div
         return aspect_context
 
-    def input_norm(self, context, eps=1e-06):
+    def input_norm(self, context, eps=config.epsilon):
         div = eps + torch.norm(context, 2, -1)
         div = div.view(context.size()[0], -1, 1)
         context = context / div
@@ -645,9 +640,8 @@ class RealAspectExtract(nn.Module):
 
 
 class CrfWdeRnnEncoder(nn.Module):
-    def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect, opt, dropout=0.01):
+    def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect):
         super(CrfWdeRnnEncoder, self).__init__()
-        self.opt = opt
         self.hidden_size = hidden_size
         self.blstm = nn.LSTM(hidden_size, 300, bidirectional=True, batch_first=True)
         self.embedded = nn.Embedding.from_pretrained(embed)
@@ -662,10 +656,10 @@ class CrfWdeRnnEncoder(nn.Module):
         # self.slf_attention = attention.MultiHeadAttentionDotProduct(3, 600, 300, 300, 0.01)
         # self.Position_wise = attention.PositionwiseFeedForward(600, 600, 0.01)
         self.min_context = nn.Linear(300, 50)
-        self.attention = attention.NormalAttention(600, 50, 50, opt)
-        self.gate = gate.Gate(300, 50, 50, 300)
-        self.dropout = nn.Dropout(opt.dropout)
-        self.crf = LinearCRF(opt)
+        self.attention = attention.NormalAttention(600, 50, 50)
+        self.gate = Gate.Gate(300, 50, 50, 300)
+        self.dropout = nn.Dropout(config.dropout)
+        self.crf = LinearCRF()
         self.feat2tri = nn.Linear(600, 2)
         self.crf2aspect = nn.Linear(600, 300)
 
@@ -747,18 +741,18 @@ class CrfWdeRnnEncoder(nn.Module):
         return result
 
     def initHidden(self, BATCH_SIZE):
-        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=self.opt.device),
-                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=self.opt.device))
+        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=config.device),
+                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=config.device))
 
     def compute_scores(self, context):
         # feat_context = torch.cat([context, asp_v], 1) # sent_len * dim_sum
         feat_context = context  # sent_len * dim_sum
         tri_scores = self.feat2tri(feat_context)
         marginals = self.crf(tri_scores)
-        select_polarity = marginals[:, :,  1].unsqueeze(1)
+        select_polarity = marginals[:, :, 1].unsqueeze(1)
 
         marginals = marginals.transpose(1, 2)  # 2 * sent_len
-        sent_v = torch.bmm(select_polarity, context) # 1 * feat_dim
+        sent_v = torch.bmm(select_polarity, context)  # 1 * feat_dim
         # label_scores = self.feat2label(sent_v).squeeze(0)
 
         return sent_v, marginals
@@ -773,18 +767,18 @@ class CrfWdeRnnEncoder(nn.Module):
         best_seqs = self.crf.predict(tri_scores)
         # best_seqs = 1
 
-        sent_v = torch.bmm(select_polarity, context) # 1 * feat_dim
+        sent_v = torch.bmm(select_polarity, context)  # 1 * feat_dim
         # print(best_seqs)
 
         return sent_v, best_seqs
 
-    def norm(self, aspect_context, eps=1e-06):
+    def norm(self, aspect_context, eps=config.epsilon):
         div = eps + torch.norm(aspect_context, 2, -1)
         div = div.view(-1, 1)
         aspect_context = aspect_context / div
         return aspect_context
 
-    def input_norm(self, context, eps=1e-06):
+    def input_norm(self, context, eps=config.epsilon):
         div = eps + torch.norm(context, 2, -1)
         div = div.view(context.size()[0], -1, 1)
         context = context / div

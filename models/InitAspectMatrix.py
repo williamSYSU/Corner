@@ -1,5 +1,5 @@
-from sklearn.cluster import KMeans
 import numpy as np
+from sklearn.cluster import KMeans
 
 final_embedding = np.array(np.load("../embed/Vector_word_embedding_all.npy"))
 k_means = KMeans(n_clusters=24)
@@ -9,4 +9,3 @@ np.save("../initAspect.npy", k_means_cluster_centers)
 
 print(k_means_cluster_centers.shape)
 print(k_means_cluster_centers)
-

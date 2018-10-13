@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import numpy as np
 
 
 class ScaledDotProductAttention(nn.Module):
@@ -13,7 +12,6 @@ class ScaledDotProductAttention(nn.Module):
         self.softmax = nn.Softmax(dim=2)
 
     def forward(self, q, k, v):
-
         attn = torch.bmm(q, k.transpose(1, 2))
         attn = attn / self.temperature
 

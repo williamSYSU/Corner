@@ -1,20 +1,15 @@
-from collections import namedtuple
+import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
 from torch.autograd import Variable
-import torch.nn.functional as F
-import pdb
-import model.util as util
-import numpy as np
-import time
+
+import config
+import models.util as util
 
 
 class LinearCRF(nn.Module):
-    def __init__(self, opt):
+    def __init__(self):
         super(LinearCRF, self).__init__()
-        self.opt = opt
         self.label_size = 2
 
         # T[i,j] for j to i, not i to j
@@ -51,7 +46,7 @@ class LinearCRF(nn.Module):
         # the first row should always be zero
         init_alphas = torch.Tensor(sent_len + 1, batch_size, self.label_size).fill_(0)
         if feats.is_cuda:
-            init_alphas = init_alphas.to(self.opt.device)
+            init_alphas = init_alphas.to(config.device)
         # forward_var[i][j] means message ends at token i(excluded) with label j
         forward_var = Variable(init_alphas)
         # for the convenience of index   #sent_l * feats * batch
@@ -88,7 +83,7 @@ class LinearCRF(nn.Module):
         # the last row should always be zero
         init_betas = torch.Tensor(sent_len + 1, batch_size, self.label_size).fill_(0)
         if feats.is_cuda:
-            init_betas = init_betas.to(self.opt.device)
+            init_betas = init_betas.to(config.device)
         # backward_var[i][j] means message starts from token i(included) with label j
         backward_var = Variable(init_betas)
 
@@ -130,7 +125,7 @@ class LinearCRF(nn.Module):
         # Initialize the viterbi variables in log space
         init_vvars = torch.Tensor(sent_len + 1, batch_size, self.label_size).fill_(0)
         if feats.is_cuda:
-            init_vvars = init_vvars.to(self.opt.device)
+            init_vvars = init_vvars.to(config.device)
         forward_var = Variable(init_vvars)
 
         # pdb.set_trace()
@@ -205,7 +200,8 @@ class LinearCRF(nn.Module):
 
         message_v = forward_v + backward_v - feats
         # message_v = forward_v + backward_v
-        Z = Z1.unsqueeze(-1).expand(-1, -1, sent_len * self.label_size).contiguous().view(batch_size, sent_len, self.label_size)
+        Z = Z1.unsqueeze(-1).expand(-1, -1, sent_len * self.label_size).contiguous().view(batch_size, sent_len,
+                                                                                          self.label_size)
         marginal_v = torch.exp(message_v - Z)
 
         return marginal_v

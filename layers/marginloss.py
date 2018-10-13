@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
 
+import config
+
 
 class MaxMargin(nn.Module):
-    def __init__(self, opt):
+    def __init__(self):
         super(MaxMargin, self).__init__()
-        self.opt = opt
 
-    def forward(self, z_s, z_n, r_s, eps=1e-06):
-
+    def forward(self, z_s, z_n, r_s, eps=config.epsilon):
         # z_s = z_s / K.cast(K.epsilon() + K.sqrt(K.sum(K.square(z_s), axis=-1, keepdims=True)), K.floatx())
         # z_n = z_n / K.cast(K.epsilon() + K.sqrt(K.sum(K.square(z_n), axis=-1, keepdims=True)), K.floatx())
         # r_s = r_s / K.cast(K.epsilon() + K.sqrt(K.sum(K.square(r_s), axis=-1, keepdims=True)), K.floatx())
@@ -36,7 +36,7 @@ class MaxMargin(nn.Module):
         z_n = z_n.float()
         r_s = r_s.float()
 
-        steps = self.opt.neg_size
+        steps = config.neg_size
 
         pos = torch.sum(z_s * r_s, dim=-1, keepdim=False)
         pos = torch.unsqueeze(pos, dim=1).expand(-1, steps)
@@ -47,8 +47,8 @@ class MaxMargin(nn.Module):
         neg = torch.sum(z_n * r_s, dim=-1)
 
         loss = torch.sum(torch.max(
-            torch.zeros(self.opt.batch_size, 1).to(self.opt.device),
-            (torch.ones(self.opt.batch_size, 1).to(self.opt.device) - pos + neg)),
+            torch.zeros(config.batch_size, 1).to(config.device),
+            (torch.ones(config.batch_size, 1).to(config.device) - pos + neg)),
             dim=-1)
         loss = torch.sum(loss, dim=0)
         return loss

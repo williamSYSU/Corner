@@ -1,14 +1,17 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-import numpy as np
-import model.attention_layer as attention
-import model.Gate as gate
-from model.attention import DotProductAttention
+
+import config
+import layers.Gate as Gate
+import layers.attention_layer as attention
+from layers.attention import DotProductAttention
 
 # MAX_LENGTH = 170
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 # final_embedding = np.array(np.load("embed/Vector1.npy"))
 # embed = torch.from_numpy(final_embedding)
 
@@ -35,7 +38,7 @@ class WdeCnn(nn.Module):
         # seq_len = batch_len.item()
         # input_index = input_index[0][0:seq_len]
         # print('input_index',input_index)
-        input_value = self.embedding(input_index).view(BATCH_SIZE, 1, MAX_LENGTH, 300). float()
+        input_value = self.embedding(input_index).view(BATCH_SIZE, 1, MAX_LENGTH, 300).float()
         # print(input_value.size())
 
         input_h1 = self.tanh(self.conv2d_h1(input_value))
@@ -62,7 +65,7 @@ class WdeCnn(nn.Module):
 
 
 class WdeRnnEncoder(nn.Module):
-    def __init__(self, hidden_size, output_size, context_dim, embed, opt):
+    def __init__(self, hidden_size, output_size, context_dim, embed):
         super(WdeRnnEncoder, self).__init__()
         self.hidden_size = hidden_size
         self.blstm = nn.LSTM(hidden_size, 300, bidirectional=True, batch_first=True)
@@ -113,12 +116,11 @@ class WdeRnnEncoder(nn.Module):
 
 
 class WdeRnnDecoder(nn.Module):
-    def __init__(self, hidden_size, output_size, dropout_rate, context_dim):
+    def __init__(self, hidden_size, output_size, context_dim):
         super(WdeRnnDecoder, self).__init__()
 
         self.hidden_size = hidden_size
-        self.dropout_rate = dropout_rate
-        self.tanh = F.tanh()
+        self.tanh = nn.Tanh()
         self.hidden_layer = nn.Linear(hidden_size * 2, hidden_size)
         self.context_input = nn.Linear(context_dim, 100)
         self.embedding_layer = nn.Linear(100 + hidden_size, output_size)
@@ -173,9 +175,8 @@ class myloss(nn.Module):
 
 
 class AttentionEncoder(nn.Module):
-    def __init__(self, hidden_size, output_size, context_dim, embed, opt, dropout=0.01):
+    def __init__(self, hidden_size, output_size, context_dim, embed):
         super(AttentionEncoder, self).__init__()
-        self.opt = opt
         self.slf_attention = attention.MultiHeadAttentionDotProduct(3, 300, 300, 300)
         # self.slf_attention = attention.MultiHeadAttention(300, 300, 300, 3)
         self.hidden_size = hidden_size
@@ -187,10 +188,10 @@ class AttentionEncoder(nn.Module):
         # self.classifier_layer = nn.Linear(output_size, 2)
         # self.softmax = nn.Softmax(dim=2)
         # self.slf_attention = attention.MultiHeadAttention(600, 3)
-        self.Position_wise = attention.PositionwiseFeedForward(300, 300, 0.01)
+        self.Position_wise = attention.PositionwiseFeedForward(300, 300)
         self.attention = attention.NormalAttention(300, 50, 50)
-        self.gate = gate.Gate(300, 50, 50, 300)
-        # self.dropout = nn.Dropout(dropout)
+        self.gate = Gate.Gate(300, 50, 50, 300)
+        # self.dropout = nn.Dropout(config.dropout)
         self.position_enc = nn.Embedding.from_pretrained(
             get_sinusoid_encoding_table(301, 300, padding_idx=300),
             freeze=True)
@@ -199,8 +200,8 @@ class AttentionEncoder(nn.Module):
         BATCH_SIZE = len(input)
         batch_len = input[:, 0]
         batch_context = input[:, 1]
-        input_index = input[:, 2: 302]
-        input_pos = input[:, 302:]
+        input_index = input[:, 2: config.maxlen]
+        input_pos = input[:, config.maxlen:]
         input_index = input_index.long()
         input_pos = input_pos.long()
         # seq_len = batch_len.item()
@@ -276,28 +277,28 @@ def get_sinusoid_encoding_table(n_position, d_hid, padding_idx=None):
 
 
 class WdeRnnEncoderFix(nn.Module):
-    def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect, opt, dropout=0.1):
+    def __init__(self, hidden_dim, output_size, context_dim, embed, trained_aspect):
         super(WdeRnnEncoderFix, self).__init__()
-        self.opt = opt
-        self.hidden_size = hidden_size
-        self.blstm = nn.LSTM(hidden_size, 300, bidirectional=True, batch_first=True)
+        self.hidden_dim = hidden_dim
+        self.embed_dim = config.embed_dim
+        self.blstm = nn.LSTM(self.embed_dim, self.hidden_dim, bidirectional=True, batch_first=True)
         self.embedded = nn.Embedding.from_pretrained(embed)
         self.aspect_embed = nn.Embedding.from_pretrained(trained_aspect)
         self.tanh = nn.Tanh()
-        self.hidden_layer = nn.Linear(hidden_size * 2, hidden_size)
+        self.hidden_layer = nn.Linear(hidden_dim * 2, hidden_dim)
         self.context_input_ = nn.Linear(600, 50)
-        self.embedding_layers = nn.Linear(0 + hidden_size, output_size)
+        self.embedding_layers = nn.Linear(0 + hidden_dim, output_size)
         # self.slf_attention = attention.MultiHeadAttention(600, 3)
         # self.slf_attention = attention.MultiHeadAttentionDotProduct(3, 600, 300, 300, 0.01)
         # self.Position_wise = attention.PositionwiseFeedForward(600, 600, 0.01)
         self.attention = attention.NormalAttention(600, 50, 50)
-        self.gate = gate.Gate(300, 50, 50, 300)
+        self.gate = Gate.Gate(300, 50, 50, 300)
         self.min_context = nn.Linear(300, 50)
 
     def forward(self, input, hidden):
         BATCH_SIZE = len(input)
         batch_len = input[:, 0]
-        batch_context = input[              :, 1]
+        batch_context = input[:, 1]
         input_index = input[:, 2:]
         input_index = input_index.long()
         # seq_len = batch_len.item()
@@ -305,6 +306,7 @@ class WdeRnnEncoderFix(nn.Module):
         # print('input_index',input_index)
         # print(hidden.size())
         sorted_seq_lengths, indices = torch.sort(batch_len, descending=True)
+        # TODO: change NO.1 -> switch order of following two lines
         _, desorted_indices = torch.sort(indices, descending=False)
         input_index = input_index[:, 0: sorted_seq_lengths[0]]
         input_index = input_index[indices]
@@ -351,39 +353,36 @@ class WdeRnnEncoderFix(nn.Module):
         return desorted_output
 
     def initHidden(self, BATCH_SIZE):
-        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=self.opt.device),
-                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=self.opt.device))
+        return (torch.zeros(2, BATCH_SIZE, self.hidden_dim, device=config.device),
+                torch.zeros(2, BATCH_SIZE, self.hidden_dim, device=config.device))
 
 
 class PreTrainABAE(nn.Module):
-    def __init__(self, embed_dim, n_aspect, aspect_embedding, embed, opt):
-
+    def __init__(self, aspect_embedding, embed):
         super(PreTrainABAE, self).__init__()
-        self.opt = opt
-        self.embed_dim = embed_dim
-        self.n_aspect = n_aspect
         self.embedded = nn.Embedding.from_pretrained(embed)
-
+        self.embed_dim = config.embed_dim
+        self.n_aspect = config.n_aspect
         # query: global_content_embeding: [batch_size, embed_dim]
         # key: inputs: [batch_size, doc_size, embed_dim]
         # value: inputs
         # mapping the input word embedding to global_content_embedding space
         self.sentence_embedding_attn = DotProductAttention(
-            d_query=embed_dim,
-            d_key=embed_dim,
-            d_value=embed_dim,
+            d_query=self.embed_dim,
+            d_key=self.embed_dim,
+            d_value=self.embed_dim,
             mapping_on="key"
         )
 
         # embed_dim => n_aspect
-        self.aspect_linear = nn.Linear(embed_dim, n_aspect)
+        self.aspect_linear = nn.Linear(self.embed_dim, self.n_aspect)
 
         # initialized with the centroids of clusters resulting from running k-means on word embeddings in corpus
         self.aspect_lookup_mat = nn.Parameter(data=aspect_embedding, requires_grad=True)
         # self.aspect_lookup_mat = nn.Parameter(torch.Tensor(n_aspect, embed_dim).double())
         # self.aspect_lookup_mat.data.uniform_(-1, 1)
 
-    def forward(self, inputs, eps=1e-06):
+    def forward(self, inputs, eps=config.epsilon):
         input_lengths = inputs[:, 0]
         inputs = inputs[:, 2:]
         input_index = inputs.long()
@@ -415,7 +414,7 @@ class PreTrainABAE(nn.Module):
 
         return predicted
 
-    def regular(self, eps=1e-06):
+    def regular(self, eps=config.epsilon):
         div = eps + torch.norm(self.aspect_lookup_mat, 2, -1)
         div = div.view(-1, 1)
         self.aspect_lookup_mat.data = self.aspect_lookup_mat / div
