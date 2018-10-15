@@ -9,9 +9,6 @@ import layers.attention_layer as attention
 from layers.CRF import LinearCRF
 from layers.attention import DotProductAttention
 
-MAX_LENGTH = 123
-device = torch.device("cpu")
-
 
 class WdeRnnEncoder(nn.Module):
     def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect):

@@ -4,7 +4,7 @@
 # @FileName     : data_util.py
 # @Time         : Created at 2018/10/11
 # @Blog         : http://zhiweil.ml/
-# @Description  : 
+# @Description  :
 # Copyrights (C) 2018. All Rights Reserved.
 
 from __future__ import unicode_literals, print_function, division
@@ -154,25 +154,6 @@ class DataPrepare:
         vocab, pairs_pos, pairs_neg = self.weakly_data
 
         final_embedding = np.array(np.load("embed/Vector_word_embedding_all.npy"))
-
-        # maxlen = 0
-        # bb = []
-        #
-        # def word2idx(sentence, vocab, maxlen, bb):
-        #     items = sentence.strip().split()
-        #     if len(items) > maxlen:
-        #         maxlen = len(items)
-        #         bb = items
-        #     for word in items:
-        #         if word not in vocab:
-        #             vocab[word] = len(vocab)
-        #     return maxlen, bb
-        #
-        # for line in pairs_pos:
-        #     maxlen, bb = word2idx(line, vocab, maxlen, bb)
-        #
-        # for line in pairs_neg:
-        #     maxlen, bb = word2idx(line, vocab, maxlen, bb)
 
         '''initialize sentence'''
         input_sen_1 = config.pad_idx + np.zeros((len(pairs_pos), config.maxlen))
@@ -488,18 +469,16 @@ class DataPrepare:
             all_data.append(data)
         return all_data
 
-    def sentence2vec(self, sentence):
+    def sentence2vec(self, sentence, wordindex):
         """serialize sentence"""
-        wordindex = []
         items = sentence.strip().split()
         length = len(items)
         for word in items:
             wordindex.append(self.vocab[word])
         return length, wordindex
 
-    def clas_sentence2vec(self, sentence, vocab):
+    def clas_sentence2vec(self, sentence, vocab, wordindex):
         """serialize sentence"""
-        wordindex = []
         items = sentence.strip().split()
         label = 0
         obj = 0
@@ -516,7 +495,8 @@ class DataPrepare:
     def week_cal_sentence_index(self, input_sen_1, input_sen_2, pairs_pos, pairs_neg):
         """serialize sentence and add extra info"""
         for line in range(len(pairs_pos)):
-            length, wordindex = self.sentence2vec(pairs_pos[line])
+            wordindex = []
+            length, wordindex = self.sentence2vec(pairs_pos[line], wordindex)
             input_sen_1[line][0] = length  # real length of sentence
             input_sen_1[line][1] = 10  # aspect index
             input_sen_1[line][2:length + 2] = np.array(wordindex)  #
@@ -524,7 +504,8 @@ class DataPrepare:
                 input_sen_1[line][config.maxlen:length + config.maxlen] = [x for x in range(length)]
 
         for line in range(len(pairs_neg)):
-            length, wordindex = self.sentence2vec(pairs_pos[line])
+            wordindex = []
+            length, wordindex = self.sentence2vec(pairs_pos[line], wordindex)
             input_sen_2[line][0] = length
             input_sen_2[line][1] = 10
             input_sen_2[line][2:length + 2] = np.array(wordindex)
@@ -535,7 +516,9 @@ class DataPrepare:
     def clas_cal_sentence_index(self, input_sen, pos_sen, neg_sen, pairs_classifier):
         """serialize sentence and add extra info"""
         for line in range(len(pairs_classifier)):
-            wordindex, length, label, obj = self.clas_sentence2vec(pairs_classifier[line], self.vocab)
+            wordindex = []
+            wordindex, length, label, obj = self.clas_sentence2vec(pairs_classifier[line],
+                                                                   self.vocab, wordindex)
             input_sen[line][0] = label
             input_sen[line][1] = obj
             input_sen[line][2] = length
@@ -553,7 +536,8 @@ class DataPrepare:
     def aspect_cal_sentence_index(self, input_sen, pairs_all):
         """serialize sentence and add extra info"""
         for line in range(len(pairs_all)):
-            length, wordindex = self.sentence2vec(pairs_all[line])
+            wordindex = []
+            length, wordindex = self.sentence2vec(pairs_all[line], wordindex)
             input_sen[line][0] = length
             input_sen[line][1] = 10
             input_sen[line][2:length + 2] = np.array(wordindex)

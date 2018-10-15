@@ -30,6 +30,8 @@ class MainInstructor:
         embedding, train_dataloader = self.my_loader.pp_dataloader_weak(all_data, final_embedding)
 
         '''calculate accuracy'''
+        print('=' * 100)
+        print('Begin train...')
         compare_acc = []
         acc = self.instructor.weakly_train(train_dataloader, test_pos, test_neg, embedding)
         compare_acc.append(acc)
@@ -47,9 +49,11 @@ class MainInstructor:
              classify_final_embedding))
 
         '''calculate accuracy'''
+
+        print('=' * 100)
+        print('Begin train...')
         compare_acc = []
-        acc = self.instructor.classification_train(config.clas_model,
-                                                   train_dataloader,
+        acc = self.instructor.classification_train(train_dataloader,
                                                    valid_dataloader,
                                                    test_dataloader,
                                                    embedding)
@@ -63,8 +67,7 @@ class MainInstructor:
         if config.plot:
             import matplotlib.pyplot as plt
 
-            acc = self.instructor.classification_train(config.clas_model,
-                                                       train_dataloader,
+            acc = self.instructor.classification_train(train_dataloader,
                                                        valid_dataloader,
                                                        test_dataloader,
                                                        embedding,
@@ -83,7 +86,9 @@ class MainInstructor:
         embedding, train_data_loader = self.my_loader.pp_dataloader_aspect((train_data, final_embedding))
 
         '''start training'''
-        self.instructor.aspect_train(config.clas_model, train_data_loader, embedding, sentence)
+        print('=' * 100)
+        print('Begin train...')
+        self.instructor.aspect_train(train_data_loader, embedding, sentence)
 
 
 if __name__ == "__main__":

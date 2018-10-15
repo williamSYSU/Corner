@@ -60,3 +60,7 @@ x 运行1：prepare_data + begintrain_lstm + add zero_grad()
 2018-10-13 15:06:23
 * 运行1：prepare_data (func in) + weakly_train + reset __init__()
 x 运行2：prepare_data (func in) + weakly_train + reset __init__, sentence2vec and cal_sen_idx()
+
+2018-10-13 17:28
+* 运行1：no change
+x 运行2：chagne wordindex

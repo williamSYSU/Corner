@@ -13,8 +13,7 @@ from layers.marginloss import MaxMargin
 
 class Instructor:
     def __init__(self):
-        print('=' * 100)
-        print('Begin train...')
+        pass
 
     def weakly_train(self, train_data, test_pos, test_neg, embed):
         # run = models.AttentionEncoder(300, 300, 50, embed).to(config.device)

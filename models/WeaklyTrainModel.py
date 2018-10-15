@@ -8,13 +8,6 @@ import layers.Gate as Gate
 import layers.attention_layer as attention
 from layers.attention import DotProductAttention
 
-# MAX_LENGTH = 170
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-# final_embedding = np.array(np.load("embed/Vector1.npy"))
-# embed = torch.from_numpy(final_embedding)
-
 
 class WdeCnn(nn.Module):
     def __init__(self, vector_size, hidden_dim, context_dim, dropout_p=0.1):
@@ -111,8 +104,8 @@ class WdeRnnEncoder(nn.Module):
         return desorted_output
 
     def initHidden(self, BATCH_SIZE):
-        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=device),
-                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=device))
+        return (torch.zeros(2, BATCH_SIZE, self.hidden_size, device=config.device),
+                torch.zeros(2, BATCH_SIZE, self.hidden_size, device=config.device))
 
 
 class WdeRnnDecoder(nn.Module):
@@ -136,7 +129,7 @@ class WdeRnnDecoder(nn.Module):
         return output
 
     def initHidden(self):
-        return torch.zeros(2, 1, self.hidden_size, device=device)
+        return torch.zeros(2, 1, self.hidden_size, device=config.device)
 
 
 class SoftMaxOutput(nn.Module):
