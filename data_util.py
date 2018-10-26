@@ -9,6 +9,7 @@
 
 from __future__ import unicode_literals, print_function, division
 
+import time
 import unicodedata
 
 import numpy as np
@@ -39,6 +40,7 @@ class DataPrepare:
         """load data from files"""
         print("=" * 100)
         print("Prepare training data...")
+        now1 = time.time()
         lines_pos1 = open('data/Weakly_labeled_data_1.1M/camera_positive.csv',
                           encoding='utf-8').read().strip().split('\n')
         lines_pos2 = open('data/Weakly_labeled_data_1.1M/cellphone_positive.csv',
@@ -54,13 +56,16 @@ class DataPrepare:
 
         lines = open('data/Labeled_data_11754/new_11754.csv',
                      encoding='gbk').read().strip().split('\n')
-
         '''merge data'''
         lines_pos = lines_pos1 + lines_pos2 + lines_pos3
         lines_neg = lines_neg1 + lines_neg2 + lines_neg3
         lines_all = lines_pos + lines_neg
 
         '''normalize sentences'''
+        self.apriori_data = [self.normalizeString(s) for s in lines_pos1[:config.apriori_test_size]]
+        print('costs {}s'.format(int(time.time() - now1)))
+        if config.train_phase == 'ae_apriori':
+            return
         self.pairs_all = [self.normalizeString(s) for s in lines_all]
         self.pairs_pos = [self.normalizeString(s) for s in lines_pos]
         self.pairs_neg = [self.normalizeString(s) for s in lines_neg]
@@ -546,6 +551,14 @@ class DataPrepare:
                 input_sen[line][config.maxlen:length + config.maxlen] = [x for x in range(length)]
         return input_sen
 
+    def clean_apriori_data(self):
+        """
+        filter apriori data
+        methods:
+        - clean stop word
+        -
+        """
+        pass
 
 class CornerData:
     def __init__(self):

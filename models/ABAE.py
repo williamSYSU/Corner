@@ -76,6 +76,7 @@ class ABAE(nn.Module):
 
         # self.regular()
 
+        '''regularization'''
         div = eps + torch.norm(self.aspect_lookup_mat, 2, -1)
         div = div.view(-1, 1)
 

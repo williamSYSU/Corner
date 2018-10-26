@@ -56,7 +56,7 @@ margin_p = 2
 
 save_mode = 'best'
 train_type = ''
-train_phase = 'weakly'  # choices: ['weakly', 'classify', 'aspect']
+train_phase = 'ae_apriori'  # choices: ['weakly', 'classify', 'aspect', 'ae_apriori']
 # clas_model = CLAS_MODEL_CHO[train_phase]
 lambda_ = 1
 pretrained_model = 'pretrainmodel/every2/every2_loss_2.57034valid_1.24226.pkl'
@@ -79,6 +79,7 @@ weak_sr = 0.7  # weakly data split rate
 sample_size = 100000
 weak_test_samples = 8000
 neg_size = 20
+apriori_test_size = 100
 maxlen_ = 300  # 300 for word embedding
 maxlen = 302  # max length of sentence, 300 for word embedding, 1 for aspect index, 1 for real length
 pad_idx = 108947  # pad index

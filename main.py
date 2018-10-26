@@ -1,6 +1,7 @@
 from __future__ import unicode_literals, print_function, division
 
 import argparse
+import time
 
 import config
 from data_util import DataPrepare, CornerData
@@ -22,6 +23,8 @@ class MainInstructor:
             self.clas_train()
         elif config.train_phase == 'aspect':
             self.aspect_train()
+        elif config.train_phase == 'ae_apriori':
+            self.asp_extra_apriori()
 
     def weak_train(self):
         """start weakly training"""
@@ -90,9 +93,16 @@ class MainInstructor:
         print('Begin train...')
         self.instructor.aspect_train(train_data_loader, embedding, sentence)
 
+    def asp_extra_apriori(self):
+        """start aspect extraction based on Apriori"""
+        all_data = self.data_prepare.apriori_data
+        print(all_data[0])
+        pass
+
 
 if __name__ == "__main__":
     '''get params from command'''
+    now1 = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument('-epoch', type=int, default=config.epoch)
     parser.add_argument('-clas_lr', default=config.clas_lr)
@@ -129,3 +139,4 @@ if __name__ == "__main__":
     '''
     inst = MainInstructor()
     inst.start_()
+    print('total costs {}s'.format(int(time.time() - now1)))

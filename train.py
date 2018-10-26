@@ -823,7 +823,7 @@ class Instructor:
             loss_all = 0
             for idx, sample_batch in enumerate(train_data):
                 indices = np.random.choice(len(sentence), config.batch_size * config.neg_size)
-                samples = sentence[indices].reshape(config.batch_size, config.neg_size, config.pad_idx)
+                samples = sentence[indices].reshape(config.batch_size, config.neg_size, config.maxlen)
                 samples = torch.from_numpy(samples).to(config.device)
                 # now = time.time()
                 input_ = sample_batch['input'].to(config.device)
@@ -839,3 +839,7 @@ class Instructor:
                 torch.save(run.state_dict(), file_name)
                 min_loss = loss_all
             print('epoch {} of {}: loss : {}'.format(epoch, config.epoch, loss_last.item()))
+
+    # TODO: aspect extraction based on Apriori
+    def asp_extra_apriori(self, all_data):
+        pass
