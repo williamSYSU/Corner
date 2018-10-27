@@ -19,6 +19,10 @@ from io import open
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 
+from nltk.corpus import stopwords
+from nltk.parse.stanford import StanfordParser
+from nltk.stem import WordNetLemmatizer
+
 import config
 
 
@@ -63,9 +67,11 @@ class DataPrepare:
 
         '''normalize sentences'''
         self.apriori_data = [self.normalizeString(s) for s in lines_pos1[:config.apriori_test_size]]
-        print('costs {}s'.format(int(time.time() - now1)))
+        # print('costs {}s'.format(int(time.time() - now1)))
         if config.train_phase == 'ae_apriori':
-            return
+            pass
+            # return
+
         self.pairs_all = [self.normalizeString(s) for s in lines_all]
         self.pairs_pos = [self.normalizeString(s) for s in lines_pos]
         self.pairs_neg = [self.normalizeString(s) for s in lines_neg]
@@ -551,14 +557,41 @@ class DataPrepare:
                 input_sen[line][config.maxlen:length + config.maxlen] = [x for x in range(length)]
         return input_sen
 
-    def clean_apriori_data(self):
+    def clean_apriori_data(self, sentences):
         """
         filter apriori data
         methods:
-        - clean stop word
-        -
+        - clean stop words
+        - stemming
+        - fuzzy matching within sentence
         """
-        pass
+        stop_words = stopwords.words('english')
+        eng_parser = StanfordParser(model_path=u'edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz')
+
+        if config.apriori_test_size < 6:
+            for sent in sentences:
+                print(sent)
+        '''POS'''
+        pos_sent = []
+        for sent in sentences:
+            pos_sent.append(list(eng_parser.parse(
+                [w for w in sent.split()]))[0])
+
+        '''filter noun phrase & NLTK stemming'''
+        cleaned_sent = []
+        for sent in pos_sent:
+            wnl = WordNetLemmatizer()
+            tmp_sent = []
+            for s in sent.subtrees(lambda t: t.height() <= 4 and t.label() == 'NP'):
+                '''clean stop words & stemming'''
+                tmp = [wnl.lemmatize(w, pos='n') for w in s.leaves() if w not in stop_words]
+                '''lenght <= 3 & filter repeated list'''
+                if 0 < len(tmp) <= 3 and tmp not in tmp_sent:
+                    tmp_sent.append(tmp)
+            cleaned_sent.append(tmp_sent)
+
+        return cleaned_sent
+
 
 class CornerData:
     def __init__(self):

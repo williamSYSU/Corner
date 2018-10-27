@@ -1,0 +1,10 @@
+i would only recommend getting this camera brand new as mine has developed some problems over the years which you can prevent
+camera brand new	mine	problem	year
+first off i didn t know that you should never leave a battery in a camera for long periods of time it ruins your battery
+first	battery	camera	long period	time
+it does not ruin the camera itself i called hp tech support and talked it over with them
+camera	hp tech support
+if you do leave the battery over a long period of time it will not be able to hold its charge
+battery	long period	time	charge
+i would simply get a new battery if it wasn t for the fact that the screw on the bottom hadn t fallen out exposing the inside of the camera
+new battery	fact	screw	bottom	inside	camera

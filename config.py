@@ -13,6 +13,12 @@ import torch.nn as nn
 import torch.optim as optim
 
 # from models import *
+import os
+
+os.environ[
+    'CLASSPATH'] = '/home/sysu2018/stanford/postagger/stanford-postagger.jar:' \
+                   '/home/sysu2018/stanford/parser/stanford-parser.jar:' \
+                   '/home/sysu2018/stanford/parser/stanford-parser-3.9.2-models.jar'
 
 '''classify model choices'''
 # CLAS_MODEL_CHO = {
@@ -79,7 +85,7 @@ weak_sr = 0.7  # weakly data split rate
 sample_size = 100000
 weak_test_samples = 8000
 neg_size = 20
-apriori_test_size = 100
+apriori_test_size = 10
 maxlen_ = 300  # 300 for word embedding
 maxlen = 302  # max length of sentence, 300 for word embedding, 1 for aspect index, 1 for real length
 pad_idx = 108947  # pad index
