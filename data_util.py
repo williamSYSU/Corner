@@ -590,7 +590,16 @@ class DataPrepare:
                     tmp_sent.append(tmp)
             cleaned_sent.append(tmp_sent)
 
-        return cleaned_sent
+        return pos_sent
+
+    def save_normalize_file(self):
+        pos_nor_file = 'data/normalize_pos.csv'
+        neg_nor_file = 'data/normalize_neg.csv'
+
+        with open(pos_nor_file, 'w') as file:
+            file.write('\n'.join(self.pairs_pos))
+        with open(neg_nor_file, 'w') as file:
+            file.write('\n'.join(self.pairs_neg))
 
 
 class CornerData:
