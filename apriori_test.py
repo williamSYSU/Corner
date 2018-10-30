@@ -7,8 +7,8 @@
 # @Description  :
 # Copyrights (C) 2018. All Rights Reserved.
 
-from tqdm import tqdm
 from nltk.corpus import stopwords
+from tqdm import tqdm
 
 
 def load_data_set(tag, select=None):

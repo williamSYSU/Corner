@@ -3,12 +3,10 @@
 # eng_tagger = StanfordPOSTagger('english-bidirectional-distsim.tagger')
 # print(eng_tagger.tag('What is the airspeed of an unladen swallow ?'.split()))
 
-from nltk.parse.stanford import StanfordParser
 from nltk.corpus import stopwords
-from nltk.draw.tree import draw_trees
-from nltk.tree import Tree
-import config
+from nltk.parse.stanford import StanfordParser
 from nltk.stem import WordNetLemmatizer
+from nltk.tree import Tree
 from tqdm import tqdm
 
 
