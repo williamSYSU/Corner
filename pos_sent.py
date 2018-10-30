@@ -12,6 +12,7 @@ os.environ[
                    '/home/{}/stanford/parser/stanford-parser-3.9.2-models.jar'.format(
     user_name, user_name, user_name)
 
+
 tag = 'pos'
 idx = 19
 file_name = 'data/normalize_{}_piece/nor_{}_{}.csv'.format(tag, tag, idx)
