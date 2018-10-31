@@ -11,6 +11,7 @@ from __future__ import unicode_literals, print_function, division
 
 import time
 import unicodedata
+from tqdm import tqdm
 
 import numpy as np
 import re
@@ -22,6 +23,7 @@ from torch.utils.data import Dataset
 from nltk.corpus import stopwords
 from nltk.parse.stanford import StanfordParser
 from nltk.stem import WordNetLemmatizer
+from nltk.tree import Tree
 
 import config
 
@@ -72,24 +74,34 @@ class DataPrepare:
             pass
             # return
 
-        self.pairs_all = [self.normalizeString(s) for s in lines_all]
-        self.pairs_pos = [self.normalizeString(s) for s in lines_pos]
-        self.pairs_neg = [self.normalizeString(s) for s in lines_neg]
-        self.pairs_classifier = [self.normalizeString(s) for s in lines]
+        '''load normalize sentences'''
+        # self.pairs_all = [self.normalizeString(s) for s in tqdm(lines_all)]
+        # self.pairs_pos = [self.normalizeString(s) for s in tqdm(lines_pos)]
+        # self.pairs_neg = [self.normalizeString(s) for s in tqdm(lines_neg)]
+        # self.pairs_classifier = [self.normalizeString(s) for s in tqdm(lines)]
+        self.pairs_all = open('data/nor_data/nor_all.csv', 'r').read().strip().split('\n')
+        self.pairs_pos = open('data/nor_data/nor_pos.csv', 'r').read().strip().split('\n')
+        self.pairs_neg = open('data/nor_data/nor_neg.csv', 'r').read().strip().split('\n')
+        self.pairs_clas = open('data/nor_data/nor_clas.csv', 'r').read().strip().split('\n')
 
-        self.vocab = {}
-        self.maxlen = 0
-        self.max_items = []
+        # self.vocab = {}
+        self.vocab = self.load_word_vocab()  # load word vocab from file
 
-        '''count maxlen and obtain bb'''
-        for line in self.pairs_classifier:
-            self.maxlen, self.max_items = self.word2idx(line, self.maxlen, self.max_items)
+        '''count maxlen and obtain bb, build vocab'''
+        # self.maxlen = 0
+        # self.max_items = []
+        # for line in self.pairs_clas:
+        #     self.maxlen, self.max_items = self.word2idx(line, self.maxlen, self.max_items)
+        #
+        # for line in self.pairs_pos:
+        #     self.maxlen, self.max_items = self.word2idx(line, self.maxlen, self.max_items)
+        #
+        # for line in self.pairs_neg:
+        #     self.maxlen, self.max_items = self.word2idx(line, self.maxlen, self.max_items)
 
-        for line in self.pairs_pos:
-            self.maxlen, self.max_items = self.word2idx(line, self.maxlen, self.max_items)
-
-        for line in self.pairs_neg:
-            self.maxlen, self.max_items = self.word2idx(line, self.maxlen, self.max_items)
+        # if save word vocab
+        # self.save_word_vocab()
+        # print('saved vocab done!')
 
     @property
     def weakly_data(self):
@@ -109,7 +121,7 @@ class DataPrepare:
             save_name = 'embed\embedding\word_embedding_classifier.txt'
             self.saveVocab(save_name)
 
-        return self.vocab, self.pairs_classifier
+        return self.vocab, self.pairs_clas
 
     @property
     def weakly_data_test(self):
@@ -128,7 +140,7 @@ class DataPrepare:
                 count = 1 + count
             return count, maxlen, max_items
 
-        for line in self.pairs_classifier:
+        for line in self.pairs_clas:
             count, self.maxlen, self.max_items = word2idx(line, self.vocab, self.maxlen, self.max_items, count)
 
         for line in self.pairs_pos:
@@ -248,12 +260,13 @@ class DataPrepare:
         vocab, pairs_classifier = self.classification_data
         final_embedding = np.array(np.load("embed/Vector_word_embedding_all.npy"))
 
-        maxlen = 0
-        max_items = []
+        # maxlen = 0
+        # max_items = []
+        #
+        # for line in pairs_classifier:
+        #     maxlen, max_items = self.word2idx(line, maxlen, max_items)
 
-        for line in pairs_classifier:
-            maxlen, max_items = self.word2idx(line, maxlen, max_items)
-
+        # initialize with pad, 4 for extra info
         input_sentence = config.pad_idx + np.zeros((len(pairs_classifier), 204))
         input_sentence = input_sentence.astype(np.int)
 
@@ -299,6 +312,7 @@ class DataPrepare:
         add = np.zeros(300)
         final_embedding = np.row_stack((final_embedding, add))
 
+        # [:, 2:]: ignore first two element
         train_data = MyDataset(self.read_clas_data(input_train[:, 2:], input_train[:, 0]))
         valid_data = MyDataset(self.read_clas_data(input_valid[:, 2:], input_valid[:, 0]))
         test_data = MyDataset(self.read_clas_data(input_test[:, 2:], input_test[:, 0]))
@@ -462,6 +476,7 @@ class DataPrepare:
         for idx in range(len(input_data)):
             items = torch.from_numpy(input_data[idx])
             items1 = torch.tensor(int(label[idx]))
+
             data = {
                 'input': items,
                 'label': items1,
@@ -510,7 +525,7 @@ class DataPrepare:
             length, wordindex = self.sentence2vec(pairs_pos[line], wordindex)
             input_sen_1[line][0] = length  # real length of sentence
             input_sen_1[line][1] = 10  # aspect index
-            input_sen_1[line][2:length + 2] = np.array(wordindex)  #
+            input_sen_1[line][2:length + 2] = np.array(wordindex)  # sentence
             if config.need_pos is True:
                 input_sen_1[line][config.maxlen:length + config.maxlen] = [x for x in range(length)]
 
@@ -530,8 +545,8 @@ class DataPrepare:
             wordindex = []
             wordindex, length, label, obj = self.clas_sentence2vec(pairs_classifier[line],
                                                                    self.vocab, wordindex)
-            input_sen[line][0] = label
-            input_sen[line][1] = obj
+            input_sen[line][0] = label  # ignore
+            input_sen[line][1] = obj  # ignore
             input_sen[line][2] = length
             input_sen[line][3] = 10
             input_sen[line][4:length + 4] = np.array(wordindex)
@@ -592,14 +607,134 @@ class DataPrepare:
 
         return pos_sent
 
-    def save_normalize_file(self):
-        pos_nor_file = 'data/normalize_pos.csv'
-        neg_nor_file = 'data/normalize_neg.csv'
+    def POS_data(self):
+        """POS sentences"""
+        tag = 'pos'
+        idx = 19
+        file_name = 'data/normalize_{}_piece/nor_{}_{}.csv'.format(tag, tag, idx)
+        with open(file_name, 'r') as file:
+            sentences = file.read().strip().split('\n')
 
-        with open(pos_nor_file, 'w') as file:
+        stop_words = stopwords.words('english')
+        eng_parser = StanfordParser(model_path=u'edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz')
+        eng_parser.java_options = '-mx3000m'
+
+        print('=' * 100)
+        print('current tag: {}, file idx: {}'.format(tag, idx))
+
+        '''POS'''
+        print('=' * 100)
+        print('Starting POS...')
+        pos_sent = []
+        for sent in tqdm(sentences):
+            pos_sent.append(list(eng_parser.parse(
+                [w for w in sent.split()]))[0])
+
+        '''save file'''
+        save_file = 'data/{}_sent/{}_sent_{}.csv'.format(tag, tag, idx)
+        with open(save_file, mode='w') as file:
+            for sent, pos in zip(sentences, pos_sent):
+                file.write(sent + '\t')
+                file.write(str(pos) + '\t')
+        print('Finish! Saved in {}'.format(save_file))
+
+    def get_apriori_data(self):
+        """get data of Apriori algorithm"""
+        tag = 'neg'
+        # times: number of file pieces
+        if tag == 'neg':
+            times = 20
+        elif tag == 'pos':
+            times = 50
+        else:
+            times = 0
+
+        for i_file in tqdm(range(times)):
+            file_name = 'data/{}_sent/{}_sent_{}.csv'.format(tag, tag, i_file)
+            save_file = 'data/{}_sent_clean/{}_sent_clean_{}.csv'.format(tag, tag, i_file)
+            stop_words = stopwords.words('english')
+
+            '''load data from file'''
+            with open(file_name, 'r') as file:
+                all_lines = file.read().split('\t')
+
+            all_sent = []
+            all_tree = []
+            for idx, line in enumerate(all_lines):
+                if idx % 2 == 0:
+                    all_sent.append(line.strip())
+                else:
+                    all_tree.append(Tree.fromstring(line.strip()))
+
+            all_sent.remove('')  # remove last empty line
+            wnl = WordNetLemmatizer()
+
+            '''stemming and get noun phrases'''
+            all_pos = []
+            cleaned_sent = []
+            for idx, (sent, tree) in tqdm(enumerate(zip(all_sent, all_tree))):
+                dict_pos = dict(tree.pos())  # tree.pos() to dict
+                words = sent.split()
+                # stemming for noun
+                for i, w in enumerate(words):
+                    if dict_pos[w] == 'NNS':
+                        words[i] = wnl.lemmatize(w, pos='n')  # stemming
+                        dict_pos[words[i]] = 'NN'  # update POS label
+
+                # update origin sentence and POS dict after stemming
+                all_sent[idx] = ' '.join(words)
+                all_pos.append(dict_pos)
+
+                # get noun phrase
+                tmp_sent = []
+                for s in tree.subtrees(lambda t: t.height() <= 4 and t.label() == 'NP'):
+                    '''clean stop words & stemming'''
+                    tmp = []
+                    for w in s.leaves():
+                        if w not in stop_words:
+                            # if have been stemmed above
+                            if w not in words:
+                                tmp.append(wnl.lemmatize(w, pos='n'))
+                            else:
+                                tmp.append(w)
+                    '''length <= 3 & filter repeated list'''
+                    if 0 < len(tmp) <= 2 and tmp not in tmp_sent:
+                        tmp_sent.append(tmp)
+                cleaned_sent.append(tmp_sent)
+
+            '''save cleaned data into file'''
+            with open(save_file, 'w') as file:
+                for sent, pos, cl_sent in zip(all_sent, all_pos, cleaned_sent):
+                    file.write(sent + '\n')
+                    file.write(str(pos) + '\n')
+                    file.write('\t'.join([' '.join(NP) for NP in cl_sent]) + '\n')
+
+    def save_normalize_file(self):
+        nor_all_file = 'data/nor_all.csv'
+        nor_pos_file = 'data/nor_pos.csv'
+        nor_neg_file = 'data/nor_neg.csv'
+        nor_clas_file = 'data/nor_clas.csv'
+
+        with open(nor_all_file, 'w') as file:
+            file.write('\n'.join(self.pairs_all))
+        with open(nor_pos_file, 'w') as file:
             file.write('\n'.join(self.pairs_pos))
-        with open(neg_nor_file, 'w') as file:
+        with open(nor_neg_file, 'w') as file:
             file.write('\n'.join(self.pairs_neg))
+        with open(nor_clas_file, 'w') as file:
+            file.write('\n'.join(self.pairs_clas))
+
+    def save_word_vocab(self):
+        """save self.vocab for future process"""
+        save_filename = 'data/vocab.txt'
+        with open(save_filename, 'w') as file:
+            file.write(str(self.vocab))
+
+    def load_word_vocab(self):
+        """load self.vocab from file"""
+        vocab_filename = 'data/vocab.txt'
+        with open(vocab_filename, 'r') as file:
+            return eval(file.read())
 
 
 class CornerData:

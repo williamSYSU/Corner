@@ -123,8 +123,11 @@ class Instructor:
                 run = run.train()
                 input_data = sample_batch['input'].to(config.device)
                 label = sample_batch['label'].to(config.device)
+
+                # origin
                 aspect_info, _, _ = pre_train_abae(input_data)
                 input_data[:, 1] = aspect_info
+
                 out = run(input_data, run_hidden).view(config.batch_size, 2).to(config.device)
                 # print("result :", out.size())
                 # print(label)

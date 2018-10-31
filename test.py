@@ -1,13 +1,19 @@
-# from nltk.tag import StanfordPOSTagger
-#
-# eng_tagger = StanfordPOSTagger('english-bidirectional-distsim.tagger')
-# print(eng_tagger.tag('What is the airspeed of an unladen swallow ?'.split()))
-
 from nltk.corpus import stopwords
 from nltk.parse.stanford import StanfordParser
 from nltk.stem import WordNetLemmatizer
 from nltk.tree import Tree
 from tqdm import tqdm
+
+import config
+import getpass
+import os
+
+user_name = getpass.getuser()
+os.environ[
+    'CLASSPATH'] = '/home/{}/stanford/postagger/stanford-postagger.jar:' \
+                   '/home/{}/stanford/parser/stanford-parser.jar:' \
+                   '/home/{}/stanford/parser/stanford-parser-3.9.2-models.jar'.format(
+    user_name, user_name, user_name)
 
 
 def apriori_test():
@@ -28,9 +34,9 @@ def apriori_test():
 
 def pos_test():
     stop_words = stopwords.words('english')
-
     eng_parser = StanfordParser(model_path=u'edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz')
-    sentence = "the sd memory card is missing"
+    eng_parser.java_options = '-mx3000m'
+    sentence = "so now i run out take a few shot then run back in the house and xfer them to the pc"
 
     res = eng_parser.parse([w for w in sentence.lower().split()])
     lst_res = list(res)[0]
@@ -74,11 +80,20 @@ def pos_test():
 
 
 # filter noun phrase and stemming
-def filter_test():
-    tag = 'neg'
-    for i_file in tqdm(range(20)):
-        file_name = 'data/{}_sent/{}_sent_{}.csv'.format(tag, tag, i_file)
-        save_file = 'data/{}_sent_clean/{}_sent_clean_{}.csv'.format(tag, tag, i_file)
+def filter_test(tag):
+    tag = tag
+    # times: number of file pieces
+    if tag == 'neg':
+        times = 20
+    elif tag == 'pos':
+        times = 50
+    else:
+        times = 1
+    for i_file in tqdm(range(times)):
+        # file_name = 'data/{}_sent/{}_sent_{}.csv'.format(tag, tag, i_file)
+        # save_file = 'data/{}_sent_clean/{}_sent_clean_{}.csv'.format(tag, tag, i_file)
+        file_name = 'data/clas_sent.csv'
+        save_file = 'data/clean_clas.csv'
         stop_words = stopwords.words('english')
         with open(file_name, 'r') as file:
             all_lines = file.read().split('\t')
@@ -99,15 +114,9 @@ def filter_test():
         for idx, (sent, tree) in tqdm(enumerate(zip(all_sent, all_tree))):
             dict_pos = dict(tree.pos())
             words = sent.split()
-            # print(words)
-            # print(dict_pos)
             for i, w in enumerate(words):
                 if dict_pos[w] == 'NNS':
-                    # print('\nsent {}'.format(idx))
-                    # print('before:', w)
                     words[i] = wnl.lemmatize(w, pos='n')
-                    # print('after:', words[i])
-                    # dict_pos.pop(w)
                     dict_pos[words[i]] = 'NN'
 
             all_sent[idx] = ' '.join(words)
@@ -137,4 +146,4 @@ def filter_test():
 
 
 if __name__ == '__main__':
-    pos_test()
+    filter_test('clas')
