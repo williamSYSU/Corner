@@ -14,29 +14,27 @@ from tqdm import tqdm
 def load_data_set(tag, select=None):
     """
     Load a sample data set
+    :param tag: tag of file: 'neg' or 'pos'
+    :param select: if select part of sentences, None: select all
     :return all_sent: A list of sentences
     :return all_pos: A list of POS dictionary of sentences
     :return data_set: A list of transactions. Each transaction contains several items.
     """
     tag = tag
-    all_lines = []
     all_sent = []
     all_pos = []
     data_set = []
-    for idx in range(20):
-        file_name = 'data/{}_sent_clean/{}_sent_clean_{}.csv'.format(
-            tag, tag, idx)
-        with open(file_name, 'r') as file:
-            tmp = file.read().split('\n')
-            tmp.pop()
-            all_lines.extend(tmp)
+
+    file_name = 'data/clean_{}.csv'.format(tag)
+    with open(file_name, 'r') as file:
+        all_lines = file.read().split('\n')
 
     for idx, line in enumerate(all_lines):
-        if idx % 3 == 0:
+        if idx % 3 == 0:  # sentence
             all_sent.append(line.strip())
-        elif idx % 3 == 1:
+        elif idx % 3 == 1:  # pos_dict
             all_pos.append(eval(line.strip()))
-        else:
+        else:  # extracted noun or noun phrase
             data_set.append(line.strip().split('\t'))
 
     print('Load dataset finished!')
@@ -338,19 +336,27 @@ def get_sent_aspect(freq_set, infreq_set, support_data, sent_data):
 
     max_aspect = list(infreq_set & sent_set)  # get from infreq_set
 
-    if max_aspect:  # return if found aspect
-        return max_aspect
+    # if max_aspect:  # return if found aspect
+    #     return max_aspect
 
-    # return sent_data if not found aspect
+    # return max_aspect ([]) if not found aspect
     return max_aspect
 
 
 if __name__ == '__main__':
-    tag = 'neg'
+    tag = ['pos', 'neg', 'clas']
     k = 2
     select = None  # None: select all
     min_support = 0.002
-    all_sent, all_pos, data_set = load_data_set(tag, select)
+
+    '''get all data'''
+    pos_sent, pos_pos, pos_data_set = load_data_set('pos', select)
+    neg_sent, neg_pos, neg_data_set = load_data_set('neg', select)
+    clas_sent, clas_pos, clas_data_set = load_data_set('clas', select)
+
+    all_sent = pos_sent + neg_sent + clas_sent
+    all_pos = pos_pos + neg_pos + clas_pos
+    data_set = pos_data_set + neg_data_set + clas_data_set
 
     print('=' * 100)
     print('Begin generate Lk')
@@ -395,11 +401,21 @@ if __name__ == '__main__':
 
     print('=' * 100)
     print('Begin extract aspect...')
-    aspect_file = 'data/{}_aspect.csv'.format(tag)
-    with open(aspect_file, 'w') as file:
-        for sent, sent_data in tqdm(zip(all_sent, data_set)):
-            aspect = get_sent_aspect(Lk, infreq_set, support_data, sent_data)
-            file.write(sent + '\n')
-            file.write('\t'.join(aspect) + '\n')
+    for t in tag:
+        aspect_file = 'data/{}_aspect.csv'.format(t)
+        if t == 'pos':
+            save_sent = pos_sent
+            save_data_set = pos_data_set
+        elif t == 'neg':
+            save_sent = neg_sent
+            save_data_set = neg_data_set
+        else:
+            save_sent = clas_sent
+            save_data_set = clas_data_set
+        with open(aspect_file, 'w') as file:
+            for sent, sent_data in tqdm(zip(save_sent, save_data_set)):
+                aspect = get_sent_aspect(Lk, infreq_set, support_data, sent_data)
+                file.write(sent + '\n')
+                file.write('\t'.join(aspect) + '\n')
+                print('extract aspect finished! Saved in {}'.format(aspect_file))
     print('=' * 100)
-    print('extract aspect finished! Saved in {}'.format(aspect_file))
