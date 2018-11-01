@@ -51,10 +51,10 @@ CRITERION_CHO = {
 }
 
 '''training params'''
-clas_lr = 0.0001
+clas_lr = 0.001
 weak_lr = 0.0001
-epoch = 200
-batch_size = 8
+epoch = 30
+batch_size = 32
 optimizer = OPTIM_CHO['sgd']
 criterion = CRITERION_CHO['cross_entropy']
 margin = 4.0
@@ -65,7 +65,7 @@ train_type = ''
 train_phase = 'classify'  # choices: ['weakly', 'classify', 'aspect', 'ae_apriori']
 # clas_model = CLAS_MODEL_CHO[train_phase]
 lambda_ = 1
-pretrained_model = 'pretrainmodel/every2/every2_loss_2.57034valid_1.24226.pkl'
+pretrained_model = 'pretrainmodel/every2/every2_loss_1.65873valid_1.20795.pkl'
 
 '''model parms'''
 d_input = 512
@@ -80,7 +80,7 @@ epsilon = 1e-06
 need_pos = False  # if need position information
 
 '''dataset params'''
-clas_sr = 0.7  # classify data split data
+clas_sr = 0.5  # classify data split data
 weak_sr = 0.7  # weakly data split rate
 sample_size = 100000
 weak_test_samples = 8000

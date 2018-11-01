@@ -417,5 +417,5 @@ if __name__ == '__main__':
                 aspect = get_sent_aspect(Lk, infreq_set, support_data, sent_data)
                 file.write(sent + '\n')
                 file.write('\t'.join(aspect) + '\n')
-                print('extract aspect finished! Saved in {}'.format(aspect_file))
+        print('extract aspect finished! Saved in {}'.format(aspect_file))
     print('=' * 100)
