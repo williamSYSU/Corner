@@ -8,15 +8,17 @@ import layers.Gate as Gate
 import layers.attention_layer as attention
 from layers.CRF import LinearCRF
 from layers.attention import DotProductAttention
+from layers.aspect_mean import AspectMean
 
 
 class WdeRnnEncoder(nn.Module):
-    def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect):
+    # def __init__(self, hidden_size, output_size, context_dim, embed, trained_aspect):
+    def __init__(self, hidden_size, output_size, context_dim, embed):
         super(WdeRnnEncoder, self).__init__()
         self.hidden_size = hidden_size
         self.blstm = nn.LSTM(hidden_size, 300, bidirectional=True, batch_first=True)
         self.embedded = nn.Embedding.from_pretrained(embed)
-        self.aspect_embed = nn.Embedding.from_pretrained(trained_aspect)
+        # self.aspect_embed = nn.Embedding.from_pretrained(trained_aspect)
         self.tanh = nn.Tanh()
         self.hidden_layer = nn.Linear(hidden_size * 2, hidden_size)
         self.context_input_ = nn.Linear(600, 50)
@@ -32,17 +34,19 @@ class WdeRnnEncoder(nn.Module):
         self.gate = Gate.Gate(300, 50, 50, 300)
         self.dropout = nn.Dropout(config.dropout)
 
-    def forward(self, input, hidden):
+        self.aspect_mean = AspectMean(3, if_expand=False)  # 3: max length of aspect
+
+    def forward(self, input, hidden, aspect):
         BATCH_SIZE = len(input)
-        batch_len = input[:, 0]
-        batch_context = input[:, 1]
+        sent_len = input[:, 0]
+        # batch_context = input[:, 1]
         input_index = input[:, 2:]
         input_index = input_index.long()
         # seq_len = batch_len.item()
         # input_index = input_index[0][0:seq_len]
         # print('input_index',input_index)
         # print(hidden.size())
-        sorted_seq_lengths, indices = torch.sort(batch_len, descending=True)
+        sorted_seq_lengths, indices = torch.sort(sent_len, descending=True)
         _, desorted_indices = torch.sort(indices, descending=False)
         input_index = input_index[:, 0: sorted_seq_lengths[0]]
         input_index = input_index[indices]
@@ -67,8 +71,14 @@ class WdeRnnEncoder(nn.Module):
         '''
         Normal attention module add or not?
         '''
-        context_input = self.aspect_embed(batch_context).float()
-        context_input = self.min_context(context_input)
+        # context_input = self.aspect_embed(batch_context).float()
+        # context_input = self.min_context(context_input)
+
+        # aspect from Apriori algorithm
+        context_embed = self.embedded(aspect).float()
+        context_mean = self.aspect_mean(context_embed)
+        # context_mean = torch.zeros(config.batch_size, 300).to(config.device)
+        context_input = self.min_context(context_mean)
 
         attn_target = self.attention(desorted_output, context_input)
 

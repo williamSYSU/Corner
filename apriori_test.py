@@ -25,7 +25,7 @@ def load_data_set(tag, select=None):
     all_pos = []
     data_set = []
 
-    file_name = 'data/clean_{}.csv'.format(tag)
+    file_name = 'data/clean_data/clean_{}.csv'.format(tag)
     with open(file_name, 'r') as file:
         all_lines = file.read().split('\n')
 

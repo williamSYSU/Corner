@@ -46,43 +46,48 @@ class DataPrepare:
         """load data from files"""
         print("=" * 100)
         print("Prepare training data...")
-        now1 = time.time()
-        lines_pos1 = open('data/Weakly_labeled_data_1.1M/camera_positive.csv',
-                          encoding='utf-8').read().strip().split('\n')
-        lines_pos2 = open('data/Weakly_labeled_data_1.1M/cellphone_positive.csv',
-                          encoding='utf-8').read().strip().split('\n')
-        lines_pos3 = open('data/Weakly_labeled_data_1.1M/laptop_positive.csv',
-                          encoding='utf-8').read().strip().split('\n')
-        lines_neg1 = open('data/Weakly_labeled_data_1.1M/camera_negative.csv',
-                          encoding='utf-8').read().strip().split('\n')
-        lines_neg2 = open('data/Weakly_labeled_data_1.1M/cellphone_negative.csv',
-                          encoding='utf-8').read().strip().split('\n')
-        lines_neg3 = open('data/Weakly_labeled_data_1.1M/laptop_negative.csv',
-                          encoding='utf-8').read().strip().split('\n')
-
-        lines = open('data/Labeled_data_11754/new_11754.csv',
-                     encoding='gbk').read().strip().split('\n')
-        '''merge data'''
-        lines_pos = lines_pos1 + lines_pos2 + lines_pos3
-        lines_neg = lines_neg1 + lines_neg2 + lines_neg3
-        lines_all = lines_pos + lines_neg
+        # now1 = time.time()
+        # lines_pos1 = open('data/Weakly_labeled_data_1.1M/camera_positive.csv',
+        #                   encoding='utf-8').read().strip().split('\n')
+        # lines_pos2 = open('data/Weakly_labeled_data_1.1M/cellphone_positive.csv',
+        #                   encoding='utf-8').read().strip().split('\n')
+        # lines_pos3 = open('data/Weakly_labeled_data_1.1M/laptop_positive.csv',
+        #                   encoding='utf-8').read().strip().split('\n')
+        # lines_neg1 = open('data/Weakly_labeled_data_1.1M/camera_negative.csv',
+        #                   encoding='utf-8').read().strip().split('\n')
+        # lines_neg2 = open('data/Weakly_labeled_data_1.1M/cellphone_negative.csv',
+        #                   encoding='utf-8').read().strip().split('\n')
+        # lines_neg3 = open('data/Weakly_labeled_data_1.1M/laptop_negative.csv',
+        #                   encoding='utf-8').read().strip().split('\n')
+        #
+        # lines = open('data/Labeled_data_11754/new_11754.csv',
+        #              encoding='gbk').read().strip().split('\n')
+        # '''merge data'''
+        # lines_pos = lines_pos1 + lines_pos2 + lines_pos3
+        # lines_neg = lines_neg1 + lines_neg2 + lines_neg3
+        # lines_all = lines_pos + lines_neg
 
         '''normalize sentences'''
-        self.apriori_data = [self.normalizeString(s) for s in lines_pos1[:config.apriori_test_size]]
         # print('costs {}s'.format(int(time.time() - now1)))
-        if config.train_phase == 'ae_apriori':
-            pass
-            # return
 
         '''load normalize sentences'''
         # self.pairs_all = [self.normalizeString(s) for s in tqdm(lines_all)]
         # self.pairs_pos = [self.normalizeString(s) for s in tqdm(lines_pos)]
         # self.pairs_neg = [self.normalizeString(s) for s in tqdm(lines_neg)]
         # self.pairs_classifier = [self.normalizeString(s) for s in tqdm(lines)]
-        self.pairs_all = open('data/nor_data/nor_all.csv', 'r').read().strip().split('\n')
-        self.pairs_pos = open('data/nor_data/nor_pos.csv', 'r').read().strip().split('\n')
-        self.pairs_neg = open('data/nor_data/nor_neg.csv', 'r').read().strip().split('\n')
-        self.pairs_clas = open('data/nor_data/nor_clas.csv', 'r').read().strip().split('\n')
+        # self.pairs_all = open('data/nor_data/nor_all.csv', 'r').read().strip().split('\n')
+        tmp = open('data/pos_aspect.csv', 'r').read().strip().split('\n')
+        self.pairs_pos = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
+        self.asp_pos = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
+
+        tmp = open('data/neg_aspect.csv', 'r').read().strip().split('\n')
+        self.pairs_neg = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
+        self.asp_neg = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
+
+        # tmp = open('data/clas_aspect.csv', 'r').read().strip().split('\n')
+        tmp = open('data/final_clas_aspect-tmp.csv', 'r').read().strip().split('\n')
+        self.pairs_clas = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
+        self.asp_clas = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
 
         # self.vocab = {}
         self.vocab = self.load_word_vocab()  # load word vocab from file
@@ -121,7 +126,7 @@ class DataPrepare:
             save_name = 'embed\embedding\word_embedding_classifier.txt'
             self.saveVocab(save_name)
 
-        return self.vocab, self.pairs_clas
+        return self.vocab, self.pairs_clas, self.asp_clas
 
     @property
     def weakly_data_test(self):
@@ -257,48 +262,50 @@ class DataPrepare:
         print("=" * 100)
         print("Classification data Process...")
 
-        vocab, pairs_classifier = self.classification_data
+        vocab, pairs_clas, asp_clas = self.classification_data
         final_embedding = np.array(np.load("embed/Vector_word_embedding_all.npy"))
 
         # maxlen = 0
         # max_items = []
         #
-        # for line in pairs_classifier:
+        # for line in pairs_clas:
         #     maxlen, max_items = self.word2idx(line, maxlen, max_items)
 
         # initialize with pad, 4 for extra info
-        input_sentence = config.pad_idx + np.zeros((len(pairs_classifier), 204))
-        input_sentence = input_sentence.astype(np.int)
+        input_sent = config.pad_idx + np.zeros(
+            (len(pairs_clas), 204))  # max length of sentence: 200, 4 for extra info
+        input_sent = input_sent.astype(np.int)
+        input_asp = config.pad_idx + np.zeros((len(pairs_clas), 3))  # max length of aspect: 3
+        input_asp = input_asp.astype(np.int)
 
         if config.need_pos is True:
-            input_sentence = config.pad_idx + np.zeros((len(pairs_classifier), 408))
-            input_sentence[:, 204:] = 200 + np.zeros((len(pairs_classifier), 204))
-            input_sentence = input_sentence.astype(np.int)
+            input_sent = config.pad_idx + np.zeros((len(pairs_clas), 408))
+            input_sent[:, 204:] = 200 + np.zeros((len(pairs_clas), 204))
+            input_sent = input_sent.astype(np.int)
 
-        pos_sentence = []
-        neg_sentence = []
+        pos_sent = []
+        neg_sent = []
 
         '''serialize sentence and add extra info'''
-        input_sentence, pos_sentence, neg_sentence = self.clas_cal_sentence_index(
-            input_sentence, pos_sentence, neg_sentence, pairs_classifier)
+        pos_sent, neg_sent, asp_list = self.clas_cal_sentence_index(input_sent, input_asp, pairs_clas, asp_clas)
 
         '''obtain train, valid, test data'''
-        pos_sentence = np.array(pos_sentence)
-        neg_sentence = np.array(neg_sentence)
+        pos_sent = np.array(pos_sent)
+        neg_sent = np.array(neg_sent)
         np.random.seed(1)
-        np.random.shuffle(pos_sentence)
+        np.random.shuffle(pos_sent)
         np.random.seed(1)
-        np.random.shuffle(neg_sentence)
+        np.random.shuffle(neg_sent)
 
-        pos_sentence_train = pos_sentence[:int(len(pos_sentence) * config.clas_sr), :]
-        pos_sentence_valid = pos_sentence[int(len(pos_sentence) * config.clas_sr): int(
-            len(pos_sentence) * (config.clas_sr + 1) / 2), :]
-        pos_sentence_test = pos_sentence[int(len(pos_sentence) * (config.clas_sr + 1) / 2):, :]
+        pos_sentence_train = pos_sent[:int(len(pos_sent) * config.clas_sr), :]
+        pos_sentence_valid = pos_sent[int(len(pos_sent) * config.clas_sr): int(
+            len(pos_sent) * (config.clas_sr + 1) / 2), :]
+        pos_sentence_test = pos_sent[int(len(pos_sent) * (config.clas_sr + 1) / 2):, :]
 
-        neg_sentence_train = neg_sentence[:int(len(neg_sentence) * config.clas_sr), :]
-        neg_sentence_valid = neg_sentence[int(len(neg_sentence) * config.clas_sr): int(
-            len(neg_sentence) * (config.clas_sr + 1) / 2), :]
-        neg_sentence_test = neg_sentence[int(len(neg_sentence) * (config.clas_sr + 1) / 2):, :]
+        neg_sentence_train = neg_sent[:int(len(neg_sent) * config.clas_sr), :]
+        neg_sentence_valid = neg_sent[int(len(neg_sent) * config.clas_sr): int(
+            len(neg_sent) * (config.clas_sr + 1) / 2), :]
+        neg_sentence_test = neg_sent[int(len(neg_sent) * (config.clas_sr + 1) / 2):, :]
 
         input_train = np.vstack((pos_sentence_train, neg_sentence_train))
         input_valid = np.vstack((pos_sentence_valid, neg_sentence_valid))
@@ -313,9 +320,9 @@ class DataPrepare:
         final_embedding = np.row_stack((final_embedding, add))
 
         # [:, 2:]: ignore first two element
-        train_data = MyDataset(self.read_clas_data(input_train[:, 2:], input_train[:, 0]))
-        valid_data = MyDataset(self.read_clas_data(input_valid[:, 2:], input_valid[:, 0]))
-        test_data = MyDataset(self.read_clas_data(input_test[:, 2:], input_test[:, 0]))
+        train_data = MyDataset(self.read_clas_data(input_train[:, 2:], input_train[:, 0], asp_list))
+        valid_data = MyDataset(self.read_clas_data(input_valid[:, 2:], input_valid[:, 0], asp_list))
+        test_data = MyDataset(self.read_clas_data(input_test[:, 2:], input_test[:, 0], asp_list))
         return train_data, valid_data, test_data, final_embedding
 
     @property
@@ -470,16 +477,18 @@ class DataPrepare:
             all_data.append(data)
         return all_data
 
-    def read_clas_data(self, input_data, label):
+    def read_clas_data(self, input_data, label, aspect):
         """read classification data"""
         all_data = []
-        for idx in range(len(input_data)):
-            items = torch.from_numpy(input_data[idx])
+        for idx, data in enumerate(input_data):
+            items = torch.from_numpy(data)
             items1 = torch.tensor(int(label[idx]))
-
+            # print('aspect', aspect[data[1]])
+            items2 = torch.tensor(aspect[data[1]])  # a list of aspect index
             data = {
                 'input': items,
                 'label': items1,
+                'aspect': items2,
             }
             all_data.append(data)
         return all_data
@@ -503,74 +512,83 @@ class DataPrepare:
             wordindex.append(self.vocab[word])
         return length, wordindex
 
-    def clas_sentence2vec(self, sentence, vocab, wordindex):
+    def clas_sentence2vec(self, sentence, aspect, vocab):
         """serialize sentence"""
-        items = sentence.strip().split()
+        wordindex = []
+        aspindex = []
+        sent_items = sentence.strip().split()
+        asp_items = aspect.strip().split()
         label = 0
         obj = 0
-        if items[0] == "positive":
+        if sent_items[0] == "positive":
             label = 1
-        if items[1] == "objective":
+        if sent_items[1] == "objective":
             obj = 1
-        length = len(items) - 2
+        length = len(sent_items) - 2
 
-        for word in items[2:]:
+        for word in sent_items[2:]:
             wordindex.append(vocab[word])
-        return wordindex, length, label, obj
+        for asp in asp_items:
+            aspindex.append(vocab[asp])
+        return wordindex, aspindex, length, label, obj
 
-    def week_cal_sentence_index(self, input_sen_1, input_sen_2, pairs_pos, pairs_neg):
+    def week_cal_sentence_index(self, input_sent_1, input_sent_2, pairs_pos, pairs_neg):
         """serialize sentence and add extra info"""
         for line in range(len(pairs_pos)):
             wordindex = []
             length, wordindex = self.sentence2vec(pairs_pos[line], wordindex)
-            input_sen_1[line][0] = length  # real length of sentence
-            input_sen_1[line][1] = 10  # aspect index
-            input_sen_1[line][2:length + 2] = np.array(wordindex)  # sentence
+            input_sent_1[line][0] = length  # real length of sentence
+            input_sent_1[line][1] = 10  # aspect index
+            input_sent_1[line][2:length + 2] = np.array(wordindex)  # sentence
             if config.need_pos is True:
-                input_sen_1[line][config.maxlen:length + config.maxlen] = [x for x in range(length)]
+                input_sent_1[line][config.maxlen:length + config.maxlen] = [x for x in range(length)]
 
         for line in range(len(pairs_neg)):
             wordindex = []
             length, wordindex = self.sentence2vec(pairs_pos[line], wordindex)
-            input_sen_2[line][0] = length
-            input_sen_2[line][1] = 10
-            input_sen_2[line][2:length + 2] = np.array(wordindex)
+            input_sent_2[line][0] = length
+            input_sent_2[line][1] = 10
+            input_sent_2[line][2:length + 2] = np.array(wordindex)
             if config.need_pos is True:
-                input_sen_2[line][config.maxlen:length + config.maxlen] = [x for x in range(length)]
-        return input_sen_1, input_sen_2
+                input_sent_2[line][config.maxlen:length + config.maxlen] = [x for x in range(length)]
+        return input_sent_1, input_sent_2
 
-    def clas_cal_sentence_index(self, input_sen, pos_sen, neg_sen, pairs_classifier):
+    def clas_cal_sentence_index(self, input_sent, input_asp, pairs_clas, asp_clas):
         """serialize sentence and add extra info"""
-        for line in range(len(pairs_classifier)):
-            wordindex = []
-            wordindex, length, label, obj = self.clas_sentence2vec(pairs_classifier[line],
-                                                                   self.vocab, wordindex)
-            input_sen[line][0] = label  # ignore
-            input_sen[line][1] = obj  # ignore
-            input_sen[line][2] = length
-            input_sen[line][3] = 10
-            input_sen[line][4:length + 4] = np.array(wordindex)
+        pos_sent = []
+        neg_sent = []
+        asp_list = []
+        for idx, (_, asp) in enumerate(zip(input_sent, input_asp)):
+            wordindex, aspindex, length, label, obj = self.clas_sentence2vec(pairs_clas[idx], asp_clas[idx], self.vocab)
+            for i, a_i in enumerate(aspindex):
+                asp[i] = a_i
+            asp_list.append(asp)  # a list of a list of aspect index
+            input_sent[idx][0] = label  # ignore
+            input_sent[idx][1] = obj  # ignore
+            input_sent[idx][2] = length
+            input_sent[idx][3] = idx  # idx for looking up asp_list
+            input_sent[idx][4:length + 4] = np.array(wordindex)
             if config.need_pos is True:
-                input_sen[line][204:length + 204] = [x for x in range(length)]
-        for sentence in input_sen:
-            if sentence[0] == 1:
-                pos_sen.append(sentence)
+                input_sent[idx][204:length + 204] = [x for x in range(length)]
+        for sent in input_sent:
+            if sent[0] == 1:
+                pos_sent.append(sent)
             else:
-                neg_sen.append(sentence)
-        return input_sen, pos_sen, neg_sen
+                neg_sent.append(sent)
+        return pos_sent, neg_sent, asp_list
 
-    def aspect_cal_sentence_index(self, input_sen, pairs_all):
+    def aspect_cal_sentence_index(self, input_sent, pairs_all):
         """serialize sentence and add extra info"""
         for line in range(len(pairs_all)):
             wordindex = []
             length, wordindex = self.sentence2vec(pairs_all[line], wordindex)
-            input_sen[line][0] = length
-            input_sen[line][1] = 10
-            input_sen[line][2:length + 2] = np.array(wordindex)
+            input_sent[line][0] = length
+            input_sent[line][1] = 10
+            input_sent[line][2:length + 2] = np.array(wordindex)
 
             if config.need_pos is True:
-                input_sen[line][config.maxlen:length + config.maxlen] = [x for x in range(length)]
-        return input_sen
+                input_sent[line][config.maxlen:length + config.maxlen] = [x for x in range(length)]
+        return input_sent
 
     def clean_apriori_data(self, sentences):
         """

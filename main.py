@@ -95,13 +95,14 @@ class MainInstructor:
 
     def asp_extra_apriori(self):
         """start aspect extraction based on Apriori"""
-        all_data = self.data_prepare.apriori_data
+        # all_data = self.data_prepare.apriori_data
 
         # file_name = 'transaction_file1.txt'
         # with open(file_name, mode='w') as file:
         #     for idx, sent in enumerate(all_data):
         #         file.write(sent + '\n')
         #         file.write('\t'.join([' '.join(NP) for NP in cleaned_sent[idx]]) + '\n')
+        pass
 
 
 if __name__ == "__main__":
