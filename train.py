@@ -180,7 +180,8 @@ class Instructor:
         '''
         Load the best models and Begin test
         '''
-        model_test = clas_model.WdeRnnEncoder(300, 300, 50, embed, trained_aspect).to(config.device)
+        # model_test = clas_model.WdeRnnEncoder(300, 300, 50, embed, trained_aspect).to(config.device)
+        model_test = clas_model.WdeRnnEncoder(300, 300, 50, embed).to(config.device)
 
         pre_trained_dict = torch.load("ClassifyModelSave/Final_model.pkl")
         model_dict = model_test.state_dict()
