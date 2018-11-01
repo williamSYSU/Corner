@@ -17,7 +17,7 @@ class WdeRnnEncoder(nn.Module):
         super(WdeRnnEncoder, self).__init__()
         self.hidden_size = hidden_size
         self.blstm = nn.LSTM(hidden_size, 300, bidirectional=True, batch_first=True)
-        self.embedded = nn.Embedding.from_pretrained(embed)
+        self.embedded = nn.Embedding.from_pretrained(embed, freeze=False)
         # self.aspect_embed = nn.Embedding.from_pretrained(trained_aspect)
         self.tanh = nn.Tanh()
         self.hidden_layer = nn.Linear(hidden_size * 2, hidden_size)

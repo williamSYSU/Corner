@@ -85,7 +85,7 @@ class DataPrepare:
         self.asp_neg = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
 
         # tmp = open('data/clas_aspect.csv', 'r').read().strip().split('\n')
-        tmp = open('data/final_clas_aspect-tmp.csv', 'r').read().strip().split('\n')
+        tmp = open('data/final_clas_aspect-tmp-retain.csv', 'r').read().strip().split('\n')
         self.pairs_clas = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
         self.asp_clas = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
 

@@ -51,10 +51,10 @@ CRITERION_CHO = {
 }
 
 '''training params'''
-clas_lr = 0.001
+clas_lr = 0.0001
 weak_lr = 0.0001
 epoch = 30
-batch_size = 32
+batch_size = 8
 optimizer = OPTIM_CHO['sgd']
 criterion = CRITERION_CHO['cross_entropy']
 margin = 4.0

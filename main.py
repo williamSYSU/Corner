@@ -138,6 +138,12 @@ if __name__ == "__main__":
 
     config.init_config(opt)  # initialize params
 
+    '''输出模型参数'''
+    print('=' * 100)
+    print('> training arguments:')
+    for arg in vars(opt):
+        print('>>> {}: {}'.format(arg, getattr(opt, arg)))
+
     '''
     After Training process of weakly supervise learning
     Begin sentiment Classification learning
