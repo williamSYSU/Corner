@@ -81,21 +81,22 @@ class Instructor:
             print('epoch {} of {}: loss : {}'.format(epoch, 500, loss_last.item()))
 
     def classification_train(self, train_data, valid_data, test_data, embed, pretrain=True):
-        init_aspect = np.array(np.load("initAspect.npy"))
-        # init_aspect = init_aspect / np.linalg.norm(init_aspect, axis=-1, keepdims=True)
-        init_aspect = torch.from_numpy(init_aspect)
-        pre_train_abae = clas_model.PreTrainABAE(init_aspect, embed).to(config.device)
+        # init_aspect = np.array(np.load("initAspect.npy"))
+        # # init_aspect = init_aspect / np.linalg.norm(init_aspect, axis=-1, keepdims=True)
+        # init_aspect = torch.from_numpy(init_aspect)
+        # pre_train_abae = clas_model.PreTrainABAE(init_aspect, embed).to(config.device)
+        #
+        # pre_trained_aspect = torch.load("AspectExtract/Aspect_Model.pkl")
+        # aspect_dict = pre_train_abae.state_dict()
+        # pre_trained_dict = {k: v for k, v in pre_trained_aspect.items() if k in aspect_dict}
+        # aspect_dict.update(pre_trained_dict)
+        # pre_train_abae.load_state_dict(aspect_dict)
+        # pre_train_abae = pre_train_abae.eval()
+        #
+        # trained_aspect = pre_trained_aspect["aspect_lookup_mat"].data
 
-        pre_trained_aspect = torch.load("AspectExtract/Aspect_Model.pkl")
-        aspect_dict = pre_train_abae.state_dict()
-        pre_trained_dict = {k: v for k, v in pre_trained_aspect.items() if k in aspect_dict}
-        aspect_dict.update(pre_trained_dict)
-        pre_train_abae.load_state_dict(aspect_dict)
-        pre_train_abae = pre_train_abae.eval()
-
-        trained_aspect = pre_trained_aspect["aspect_lookup_mat"].data
-
-        run = clas_model.WdeRnnEncoder(300, 300, 50, embed, trained_aspect).to(config.device)
+        # run = clas_model.WdeRnnEncoder(300, 300, 50, embed, trained_aspect).to(config.device)
+        run = clas_model.WdeRnnEncoder(300, 300, 50, embed).to(config.device)
         # params = []
         # for param in run.parameters():
         #     if param.requires_grad:
@@ -110,7 +111,7 @@ class Instructor:
             run.load_state_dict(model_dict)
 
         optimizer = config.optimizer(filter(lambda p: p.requires_grad, run.parameters()), lr=config.clas_lr)
-        criterion = config.criterion
+        criterion = config.criterion()
         all_evaluate = []
         best_test = 0
         for epoch in range(config.epoch + 1):
@@ -123,12 +124,13 @@ class Instructor:
                 run = run.train()
                 input_data = sample_batch['input'].to(config.device)
                 label = sample_batch['label'].to(config.device)
+                aspect = sample_batch['aspect'].to(config.device)
 
                 # origin
-                aspect_info, _, _ = pre_train_abae(input_data)
-                input_data[:, 1] = aspect_info
+                # aspect_info, _, _ = pre_train_abae(input_data)
+                # input_data[:, 1] = aspect_info
 
-                out = run(input_data, run_hidden).view(config.batch_size, 2).to(config.device)
+                out = run(input_data, run_hidden, aspect).view(config.batch_size, 2).to(config.device)
                 # print("result :", out.size())
                 # print(label)
                 loss = criterion(out, label)
@@ -153,9 +155,10 @@ class Instructor:
                         run = run.eval()
                         input_data = sample_batch['input'].to(config.device)
                         label = sample_batch['label'].to(config.device)
-                        aspect_info, _, _ = pre_train_abae(input_data)
-                        input_data[:, 1] = aspect_info
-                        outputs = run(input_data, run_hidden).view(1, 2).to(config.device)
+                        aspect = sample_batch['aspect'].to(config.device)
+                        # aspect_info, _, _ = pre_train_abae(input_data)
+                        # input_data[:, 1] = aspect_info
+                        outputs = run(input_data, run_hidden, aspect).view(1, 2).to(config.device)
                         _, predicted = torch.max(outputs.data, 1)
                         # print(outputs)
                         # print(predicted)
@@ -195,9 +198,10 @@ class Instructor:
                 model_test = model_test.eval()
                 input_data = sample_batch['input'].to(config.device)
                 label = sample_batch['label'].to(config.device)
-                aspect_info, _, _ = pre_train_abae(input_data)
-                input_data[:, 1] = aspect_info
-                outputs = model_test(input_data, run_hidden).view(1, 2).to(config.device)
+                aspect = sample_batch['aspect'].to(config.device)
+                # aspect_info, _, _ = pre_train_abae(input_data)
+                # input_data[:, 1] = aspect_info
+                outputs = model_test(input_data, run_hidden, aspect).view(1, 2).to(config.device)
                 _, predicted = torch.max(outputs.data, 1)
                 # print(outputs)
                 # print(predicted)

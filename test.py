@@ -145,5 +145,43 @@ def filter_test(tag):
                 file.write('\t'.join([' '.join(NP) for NP in cl_sent]) + '\n')
 
 
+def update_clas_data():
+    """add origin info into clas_aspect.csv (such as label and subjective info)"""
+    raw_filename = 'data/nor_data/nor_clas.csv'
+    tar_filename = 'data/clas_aspect-tmp.csv'
+    save_filename = 'data/update_clas_aspect-tmp.csv'
+
+    raw_lines = open(raw_filename, 'r').read().strip().split('\n')
+    tar_lines = open(tar_filename, 'r').read().strip().split('\n')
+    for idx, line in enumerate(raw_lines):
+        tar_lines[idx * 2] = line
+
+    with open(save_filename, 'w') as file:
+        file.write('\n'.join(tar_lines))
+
+
+def repeat_asp_sent():
+    """one aspect for one input sentence, remove sentence without aspect"""
+    # tag = ['pos', 'neg', 'clas']
+    tag = ['clas']
+    for t in tag:
+        # file_name = 'data/{}_aspect.csv'.format(t)
+        # save_file = 'data/final_{}_aspect.csv'.format(t)
+        file_name = 'data/update_clas_aspect-tmp.csv'
+        save_file = 'data/final_clas_aspect-tmp.csv'
+        tmp = open(file_name, 'r').read().strip().split('\n')
+        sentences = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
+        aspects = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
+
+        with open(save_file, 'w') as file:
+            for sent, asp in zip(sentences, aspects):
+                items = asp.split('\t')
+                for i in items:  # ignore sentence withou aspect
+                    if i != '':
+                        file.write(sent + '\n')
+                        file.write(i + '\n')
+
+
+
 if __name__ == '__main__':
-    filter_test('clas')
+    repeat_asp_sent()
