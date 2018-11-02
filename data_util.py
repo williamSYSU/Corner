@@ -283,7 +283,7 @@ class DataPrepare:
 
         all_data = MyDataset(self.read_weak_data(train_dim1, train_dim2, train_dim3, asp_list))
 
-        return all_data, final_embedding, \
+        return all_data, final_embedding, asp_list, \
                np.array(input_pos_test[0:config.weak_test_samples, :]), \
                np.array(input_neg_test[0:config.weak_test_samples, :])
 

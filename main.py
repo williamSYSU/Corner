@@ -2,6 +2,7 @@ from __future__ import unicode_literals, print_function, division
 
 import argparse
 import time
+import os
 
 import config
 from data_util import DataPrepare, CornerData
@@ -26,17 +27,30 @@ class MainInstructor:
         elif config.train_phase == 'ae_apriori':
             self.asp_extra_apriori()
 
+    def create_path(self):
+        current = time.strftime('%m-%d_%H:%M', time.localtime())
+        path = '/media/sysu2018/4TBDisk/william/corner_weakly_model/{}_retain{}_step{}_thres{}/'.format(
+            current, '1' if config.if_retain else '0', config.valid_step, config.valid_thres)
+        folder = os.path.exists(path)
+        if not folder:
+            os.makedirs(path)
+            print('>>> New save model path:', path)
+            # set config save_model_path
+            config.save_model_path = path
+        else:
+            print('>>> Folder {} already exists!'.format(path))
+
     def weak_train(self):
         """start weakly training"""
         '''obtain test, valid and test data and dataloader'''
-        all_data, final_embedding, test_pos, test_neg = self.data_prepare.weakly_data_process
+        all_data, final_embedding, asp_list, test_pos, test_neg = self.data_prepare.weakly_data_process
         embedding, train_dataloader = self.my_loader.pp_dataloader_weak(all_data, final_embedding)
 
         '''calculate accuracy'''
         print('=' * 100)
         print('Begin train...')
         compare_acc = []
-        acc = self.instructor.weakly_train(train_dataloader, test_pos, test_neg, embedding)
+        acc = self.instructor.weakly_train(train_dataloader, test_pos, test_neg, embedding, asp_list)
         compare_acc.append(acc)
 
     def clas_train(self):
@@ -149,5 +163,6 @@ if __name__ == "__main__":
     Begin sentiment Classification learning
     '''
     inst = MainInstructor()
+    inst.create_path()  # create save model path
     inst.start_()
     print('total costs {}s'.format(int(time.time() - now1)))

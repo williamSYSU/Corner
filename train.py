@@ -15,7 +15,7 @@ class Instructor:
     def __init__(self):
         pass
 
-    def weakly_train(self, train_data, test_pos, test_neg, embed):
+    def weakly_train(self, train_data, test_pos, test_neg, embed, asp_list):
         # run = models.AttentionEncoder(300, 300, 50, embed).to(config.device)
 
         # init_aspect = np.array(np.load("initAspect.npy"))
@@ -77,18 +77,18 @@ class Instructor:
                 loss_last = loss_func(out1, out2, out3)
                 loss_last.backward()
                 optimizer.step()
-            # if epoch % 5 == 0:
-            #     run.zero_grad()
-            #     run = run.eval()
-            #     valid_now = valid(PreTrainABAE, run, test_pos, test_neg, embed)
-            #     a = round((loss_last).item(), 5)
-            #     b = round(valid_now, 5)
-            #     if config.save_model is True and valid_now > 1.13:
-            #         file_name = "/media/sysu2018/4TBDisk/bcfox/" + "model_loss_" + str(a) + "valid_" + str(b) + ".pkl"
-            #         torch.save(run.state_dict(), file_name)
-            #
-            #     print('epoch {} of {}: TEST : {}'.format(epoch, 500, valid_now))
-            print('epoch {} of {}: loss : {}'.format(epoch, 500, loss_last.item()))
+            if epoch % config.valid_step == 0:
+                run.zero_grad()
+                run = run.eval()
+                valid_now = self.valid(asp_list, run, test_pos, test_neg, embed)
+                a = round((loss_last).item(), 5)
+                b = round(valid_now, 5)
+                if config.save_model and valid_now > config.valid_thres:
+                    file_name = config.save_model_path + "model_loss_" + str(a) + "valid_" + str(b) + ".pkl"
+                    torch.save(run.state_dict(), file_name)
+
+                print('epoch {} of {}: TEST : {}'.format(epoch, config.epoch, valid_now))
+            print('epoch {} of {}: loss : {}'.format(epoch, config.epoch, loss_last.item()))
 
     def classification_train(self, train_data, valid_data, test_data, embed, pretrain=True):
         # init_aspect = np.array(np.load("initAspect.npy"))
@@ -290,8 +290,9 @@ class Instructor:
                     all_evaluate.append(correct / total)
         return all_evaluate
 
-    def valid(self, PreTrainABAE, model_trained, pos_test, neg_test, embed):
-        PreTrainABAE = PreTrainABAE.eval()
+    # def valid(self, PreTrainABAE, model_trained, pos_test, neg_test, embed):
+    def valid(self, asp_list, model_trained, pos_test, neg_test, embed):
+        # PreTrainABAE = PreTrainABAE.eval()
 
         with torch.no_grad():
             pos_len = len(pos_test)
@@ -299,17 +300,21 @@ class Instructor:
             #         print("1")
             # context = torch.ones((1, 50))
             run_hidden = model_trained.initHidden(1)
+            pos_embedding = None
+            neg_embedding = None
             for idx, sentence in enumerate(pos_test):
                 if idx == 0:
                     sentence = torch.from_numpy(sentence).view(1, -1).to(config.device)
-                    sentence[:, 1] = PreTrainABAE(sentence)
-                    pos_embedding = model_trained(sentence, run_hidden).view(1, 300)
+                    # sentence[:, 1] = PreTrainABAE(sentence)
+                    aspect = torch.from_numpy(asp_list[sentence[0][1]]).unsqueeze(0).to(config.device)
+                    pos_embedding = model_trained(sentence, run_hidden, aspect).view(1, 300)
                 else:
                     sentence = torch.from_numpy(sentence).view(1, -1).to(config.device)
-                    sentence[:, 1] = PreTrainABAE(sentence)
+                    # sentence[:, 1] = PreTrainABAE(sentence)
+                    aspect = torch.from_numpy(asp_list[sentence[0][1]]).unsqueeze(0).to(config.device)
                     pos_embedding = torch.cat((
                         pos_embedding,
-                        model_trained(sentence, run_hidden).view(1, 300)
+                        model_trained(sentence, run_hidden, aspect).view(1, 300)
                     ),
                         dim=0
                     )
@@ -318,14 +323,16 @@ class Instructor:
             for idx, sentence in enumerate(neg_test):
                 if idx == 0:
                     sentence = torch.from_numpy(sentence).view(1, -1).to(config.device)
-                    sentence[:, 1] = PreTrainABAE(sentence)
-                    neg_embedding = model_trained(sentence, run_hidden).view(1, 300)
+                    # sentence[:, 1] = PreTrainABAE(sentence)
+                    aspect = torch.from_numpy(asp_list[sentence[0][1]]).unsqueeze(0).to(config.device)
+                    neg_embedding = model_trained(sentence, run_hidden, aspect).view(1, 300)
                 else:
                     sentence = torch.from_numpy(sentence).view(1, -1).to(config.device)
-                    sentence[:, 1] = PreTrainABAE(sentence)
+                    # sentence[:, 1] = PreTrainABAE(sentence)
+                    aspect = torch.from_numpy(asp_list[sentence[0][1]]).unsqueeze(0).to(config.device)
                     neg_embedding = torch.cat((
                         neg_embedding,
-                        model_trained(sentence, run_hidden).view(1, 300)
+                        model_trained(sentence, run_hidden, aspect).view(1, 300)
                     ),
                         dim=0
                     )

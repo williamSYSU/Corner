@@ -8,12 +8,12 @@
 # Copyrights (C) 2018. All Rights Reserved.
 
 import os
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
 # from models import *
-import os
 
 os.environ[
     'CLASSPATH'] = '/home/sysu2018/stanford/postagger/stanford-postagger.jar:' \
@@ -53,12 +53,14 @@ CRITERION_CHO = {
 '''training params'''
 clas_lr = 0.0001
 weak_lr = 0.0001
-epoch = 30
-batch_size = 8
+epoch = 200
+batch_size = 128
 optimizer = OPTIM_CHO['sgd']
 criterion = CRITERION_CHO['tri_marginloss']
 margin = 4.0
 margin_p = 2
+valid_step = 5
+valid_thres = 1.13
 
 save_mode = 'best'
 train_type = ''
@@ -95,7 +97,8 @@ if_retain = False  # if retain original noun as aspects in sentence without aspe
 
 '''others params'''
 plot = False  # if use plot
-save_model = False  # if save model
+save_model = True  # if save model
+save_model_path = '/media/sysu2018/4TBDisk/william/corner_weakly_model/tmp/'
 
 '''Automatically choose GPU or CPU'''
 device_dict = {
