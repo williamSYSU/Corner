@@ -148,27 +148,33 @@ def filter_test(tag):
 def update_clas_data():
     """add origin info into clas_aspect.csv (such as label and subjective info)"""
     raw_filename = 'data/nor_data/nor_clas.csv'
-    tar_filename = 'data/clas_aspect-tmp.csv'
-    save_filename = 'data/update_clas_aspect-tmp.csv'
+    tar_filename = 'data/aspect_data/unused_aspect_clas_retain.csv'
+    save_filename = 'data/aspect_data/update_aspect_clas_retain.csv'
 
     raw_lines = open(raw_filename, 'r').read().strip().split('\n')
     tar_lines = open(tar_filename, 'r').read().strip().split('\n')
-    for idx, line in enumerate(raw_lines):
-        tar_lines[idx * 2] = line
+    tar_sents = [tar_lines[i] for i in range(len(tar_lines)) if i % 2 == 0]
+    for idx, (raw_sent, tar_sent) in enumerate(zip(raw_lines, tar_sents)):
+        items = raw_sent.strip().split()
+        tmp_sent = [items[0], items[1], tar_sent]
+        tar_lines[idx * 2] = ' '.join(tmp_sent)
+        # tar_lines[idx * 2] = raw_sent
 
     with open(save_filename, 'w') as file:
         file.write('\n'.join(tar_lines))
 
 
-def repeat_asp_sent():
+def repeat_asp_sent(if_retain=False):
     """one aspect for one input sentence, remove sentence without aspect"""
-    # tag = ['pos', 'neg', 'clas']
-    tag = ['clas']
+    tag = ['pos', 'neg', 'clas']
+    # tag = ['clas']
+    retain = ''
+    if if_retain:
+        retain = '_retain'
+
     for t in tag:
-        # file_name = 'data/{}_aspect.csv'.format(t)
-        # save_file = 'data/final_{}_aspect.csv'.format(t)
-        file_name = 'data/update_clas_aspect-tmp.csv'
-        save_file = 'data/final_clas_aspect-tmp.csv'
+        file_name = 'data/aspect_data/aspect_{}{}.csv'.format(t, retain)
+        save_file = 'data/final_aspect_data/final_aspect_{}{}.csv'.format(t, retain)
         tmp = open(file_name, 'r').read().strip().split('\n')
         sentences = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
         aspects = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
@@ -182,6 +188,29 @@ def repeat_asp_sent():
                         file.write(i + '\n')
 
 
+def retain_asp_sent():
+    tag = ['pos', 'neg', 'clas']
+    for t in tag:
+        raw_file = 'data/clean_data/clean_{}.csv'.format(t)
+        tar_file = 'data/aspect_data/aspect_{}.csv'.format(t)
+        save_file = 'data/aspect_data/aspect_{}_retain.csv'.format(t)
+
+        tmp = open(raw_file, 'r').read().strip().split('\n')
+        raw_data = [tmp[i] for i in range(len(tmp)) if i % 3 == 2]
+
+        tmp = open(tar_file, 'r').read().strip().split('\n')
+        tar_sent = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
+        tar_data = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
+
+        with open(save_file, 'w') as file:
+            for idx, (sent, data) in enumerate(zip(tar_sent, tar_data)):
+                file.write(sent + '\n')
+                if data != '':
+                    file.write(data + '\n')
+                else:
+                    file.write(raw_data[idx] + '\n')
+
 
 if __name__ == '__main__':
-    repeat_asp_sent()
+    # update_clas_data()
+    repeat_asp_sent(if_retain=True)

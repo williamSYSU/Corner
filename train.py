@@ -18,21 +18,22 @@ class Instructor:
     def weakly_train(self, train_data, test_pos, test_neg, embed):
         # run = models.AttentionEncoder(300, 300, 50, embed).to(config.device)
 
-        init_aspect = np.array(np.load("initAspect.npy"))
-        # init_aspect = init_aspect / np.linalg.norm(init_aspect, axis=-1, keepdims=True)
-        init_aspect = torch.from_numpy(init_aspect)
-        pre_train_abae = weak_model.PreTrainABAE(init_aspect, embed).to(config.device)
+        # init_aspect = np.array(np.load("initAspect.npy"))
+        # # init_aspect = init_aspect / np.linalg.norm(init_aspect, axis=-1, keepdims=True)
+        # init_aspect = torch.from_numpy(init_aspect)
+        # pre_train_abae = weak_model.PreTrainABAE(init_aspect, embed).to(config.device)
+        #
+        # pre_trained_aspect = torch.load("AspectExtract/Aspect_Model.pkl")
+        # aspect_dict = pre_train_abae.state_dict()
+        # pre_trained_dict = {k: v for k, v in pre_trained_aspect.items() if k in aspect_dict}
+        # aspect_dict.update(pre_trained_dict)
+        # pre_train_abae.load_state_dict(aspect_dict)
+        # pre_train_abae = pre_train_abae.eval()
+        #
+        # trained_aspect = pre_trained_aspect["aspect_lookup_mat"].data
 
-        pre_trained_aspect = torch.load("AspectExtract/Aspect_Model.pkl")
-        aspect_dict = pre_train_abae.state_dict()
-        pre_trained_dict = {k: v for k, v in pre_trained_aspect.items() if k in aspect_dict}
-        aspect_dict.update(pre_trained_dict)
-        pre_train_abae.load_state_dict(aspect_dict)
-        pre_train_abae = pre_train_abae.eval()
-
-        trained_aspect = pre_trained_aspect["aspect_lookup_mat"].data
-
-        run = weak_model.WdeRnnEncoderFix(300, 300, 50, embed, trained_aspect).to(config.device)
+        # run = weak_model.WdeRnnEncoderFix(300, 300, 50, embed, trained_aspect).to(config.device)
+        run = weak_model.WdeRnnEncoderFix(300, 300, 50, embed).to(config.device)
         # context = torch.ones((config.batch_size, 50))
         # optimizer = optim.Adagrad(params, lr=0.003)
         # params = []
@@ -55,15 +56,24 @@ class Instructor:
                 input1 = sample_batch['input1'].to(config.device)
                 input2 = sample_batch['input2'].to(config.device)
                 input3 = sample_batch['input3'].to(config.device)
-                aspect_info = pre_train_abae(input1)
-                input1[:, 1] = aspect_info
-                aspect_info = pre_train_abae(input2)
-                input2[:, 1] = aspect_info
-                aspect_info = pre_train_abae(input3)
-                input3[:, 1] = aspect_info
-                out1 = run(input1, run_hidden).view(config.batch_size, 300)
-                out2 = run(input2, run_hidden).view(config.batch_size, 300)
-                out3 = run(input3, run_hidden).view(config.batch_size, 300)
+                aspect1 = sample_batch['aspect1'].to(config.device)
+                aspect2 = sample_batch['aspect2'].to(config.device)
+                aspect3 = sample_batch['aspect3'].to(config.device)
+
+                # get aspect info
+                # aspect_info = pre_train_abae(input1)
+                # input1[:, 1] = aspect_info
+                # aspect_info = pre_train_abae(input2)
+                # input2[:, 1] = aspect_info
+                # aspect_info = pre_train_abae(input3)
+                # input3[:, 1] = aspect_info
+
+                # feed input data
+                out1 = run(input1, run_hidden, aspect1).view(config.batch_size, 300)
+                out2 = run(input2, run_hidden, aspect2).view(config.batch_size, 300)
+                out3 = run(input3, run_hidden, aspect3).view(config.batch_size, 300)
+
+                # count loss
                 loss_last = loss_func(out1, out2, out3)
                 loss_last.backward()
                 optimizer.step()
@@ -114,7 +124,7 @@ class Instructor:
         criterion = config.criterion()
         all_evaluate = []
         best_test = 0
-        for epoch in range(config.epoch + 1):
+        for epoch in range(config.epoch):
             run_hidden = run.initHidden(config.batch_size)
             # context = torch.ones((config.batch_size, 50))
             # loss_last = torch.tensor([0], dtype=torch.float)

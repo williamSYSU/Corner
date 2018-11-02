@@ -56,13 +56,13 @@ weak_lr = 0.0001
 epoch = 30
 batch_size = 8
 optimizer = OPTIM_CHO['sgd']
-criterion = CRITERION_CHO['cross_entropy']
+criterion = CRITERION_CHO['tri_marginloss']
 margin = 4.0
 margin_p = 2
 
 save_mode = 'best'
 train_type = ''
-train_phase = 'classify'  # choices: ['weakly', 'classify', 'aspect', 'ae_apriori']
+train_phase = 'weakly'  # choices: ['weakly', 'classify', 'aspect', 'ae_apriori']
 # clas_model = CLAS_MODEL_CHO[train_phase]
 lambda_ = 1
 pretrained_model = 'pretrainmodel/every2/every2_loss_1.65873valid_1.20795.pkl'
@@ -75,7 +75,7 @@ embed_dim = 300
 hidden_dim = 300
 context_dim = 300
 output_dim = 50
-dropout = 0.1
+dropout = 0.4
 epsilon = 1e-06
 need_pos = False  # if need position information
 
@@ -91,6 +91,7 @@ maxlen = 302  # max length of sentence, 300 for word embedding, 1 for aspect ind
 pad_idx = 108947  # pad index
 pp_data_weak = False
 pp_data_clas = False
+if_retain = False  # if retain original noun as aspects in sentence without aspects
 
 '''others params'''
 plot = False  # if use plot

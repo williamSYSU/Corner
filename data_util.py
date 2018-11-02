@@ -76,16 +76,19 @@ class DataPrepare:
         # self.pairs_neg = [self.normalizeString(s) for s in tqdm(lines_neg)]
         # self.pairs_classifier = [self.normalizeString(s) for s in tqdm(lines)]
         # self.pairs_all = open('data/nor_data/nor_all.csv', 'r').read().strip().split('\n')
-        tmp = open('data/pos_aspect.csv', 'r').read().strip().split('\n')
+        tmp = open('data/final_aspect_data/final_aspect_pos.csv',
+                   'r').read().strip().split('\n')
         self.pairs_pos = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
         self.asp_pos = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
 
-        tmp = open('data/neg_aspect.csv', 'r').read().strip().split('\n')
+        tmp = open('data/final_aspect_data/final_aspect_neg.csv',
+                   'r').read().strip().split('\n')
         self.pairs_neg = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
         self.asp_neg = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
 
         # tmp = open('data/clas_aspect.csv', 'r').read().strip().split('\n')
-        tmp = open('data/final_clas_aspect-tmp-retain.csv', 'r').read().strip().split('\n')
+        tmp = open('data/final_aspect_data/final_aspect_clas_retain.csv',
+                   'r').read().strip().split('\n')
         self.pairs_clas = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
         self.asp_clas = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
 
@@ -116,7 +119,7 @@ class DataPrepare:
             save_name = 'embed\embedding\word_embedding_classifier.txt'
             self.saveVocab(save_name)
 
-        return self.vocab, self.pairs_pos, self.pairs_neg
+        return self.vocab, self.pairs_pos, self.pairs_neg, self.asp_pos, self.asp_neg
 
     @property
     def classification_data(self):
@@ -179,7 +182,7 @@ class DataPrepare:
         print("=" * 100)
         print("Weakly data Process...")
 
-        vocab, pairs_pos, pairs_neg = self.weakly_data
+        vocab, pairs_pos, pairs_neg, asp_pos, asp_neg = self.weakly_data
 
         final_embedding = np.array(np.load("embed/Vector_word_embedding_all.npy"))
 
@@ -189,6 +192,15 @@ class DataPrepare:
         input_sen_2 = config.pad_idx + np.zeros((len(pairs_neg), config.maxlen))
         input_sen_2 = input_sen_2.astype(np.int)
 
+        '''initialize aspects of sentence'''
+        input_asp_1 = config.pad_idx + np.zeros((len(pairs_pos), 3))
+        input_asp_1 = input_asp_1.astype(np.int)
+        input_asp_2 = config.pad_idx + np.zeros((len(pairs_neg), 3))
+        input_asp_2 = input_asp_2.astype(np.int)
+
+        '''a list of aspects of all sentences'''
+        asp_list = []
+
         if config.need_pos is True:
             input_sen_1 = config.pad_idx + np.zeros((len(pairs_pos), 2 * config.maxlen))
             input_sen_1[:, config.maxlen:] = config.maxlen_ + np.zeros((len(pairs_pos), config.maxlen))
@@ -197,28 +209,47 @@ class DataPrepare:
             input_sen_2[:, config.maxlen:] = config.maxlen_ + np.zeros((len(pairs_neg), config.maxlen))
             input_sen_2 = input_sen_2.astype(np.int)
 
-        def sentence2vec(sentence, vocab, wordindex):
-            items = sentence.strip().split()
-            length = len(items)
-            for word in items:
-                wordindex.append(vocab[word])
-            return length, wordindex
+        def sentence2vec(sentence, aspect):
+            wordindex = []
+            aspindex = []
+            sent_items = sentence.strip().split()
+            asp_items = aspect.strip().split()
+            length = len(sent_items)
+            for word in sent_items:
+                if word in self.vocab:
+                    wordindex.append(self.vocab[word])
+                else:
+                    wordindex.append(np.random.randint(len(self.vocab) - 1))  # if not found
+            for asp in asp_items:
+                if asp in self.vocab:
+                    aspindex.append(self.vocab[asp])
+                else:
+                    aspindex.append(np.random.randint(len(self.vocab) - 1))  # if not found
+            return length, wordindex, aspindex
 
         def cal_sentence_index():
-            for line in range(len(pairs_pos)):
-                wordindex = []
-                length, wordindex = sentence2vec(pairs_pos[line], vocab, wordindex)
-                input_sen_1[line][0] = length
-                input_sen_1[line][1] = 10
-                input_sen_1[line][2:length + 2] = np.array(wordindex)
+            asp_idx = 0
+            for idx, (_, asp) in enumerate(zip(pairs_pos, input_asp_1)):
+                length, wordindex, aspindex = sentence2vec(pairs_pos[idx], asp_pos[idx])
+                for i, a_i in enumerate(aspindex):
+                    asp[i] = a_i
+                asp_list.append(asp)
+                input_sen_1[idx][0] = length
+                input_sen_1[idx][1] = asp_idx  # idx for looking up aspect
+                input_sen_1[idx][2:length + 2] = np.array(wordindex)
+                asp_idx += 1
 
-            for line in range(len(pairs_neg)):
-                wordindex = []
-                length, wordindex = sentence2vec(pairs_neg[line], vocab, wordindex)
-                input_sen_2[line][0] = length
-                input_sen_2[line][1] = 10
-                input_sen_2[line][2:length + 2] = np.array(wordindex)
-            return input_sen_1, input_sen_2
+            for idx, (_, asp) in enumerate(zip(pairs_neg, input_asp_2)):
+                length, wordindex, aspindex = sentence2vec(pairs_neg[idx], asp_neg[idx])
+                for i, a_i in enumerate(aspindex):
+                    asp[i] = a_i
+                asp_list.append(asp)
+                input_sen_2[idx][0] = length
+                input_sen_2[idx][1] = asp_idx  # idx for looking up aspect
+                input_sen_2[idx][2:length + 2] = np.array(wordindex)
+                asp_idx += 1
+
+            # return input_sen_1, input_sen_2
 
         '''serialize sentence and add extra info'''
         # input_sen_1, input_sen_2 = self.week_cal_sentence_index(
@@ -250,7 +281,7 @@ class DataPrepare:
         train_dim2 = np.vstack((train_pos_2, train_neg_2))
         train_dim3 = np.vstack((train_pos_neg, train_neg_pos))
 
-        all_data = MyDataset(self.read_weak_data(train_dim1, train_dim2, train_dim3))
+        all_data = MyDataset(self.read_weak_data(train_dim1, train_dim2, train_dim3, asp_list))
 
         return all_data, final_embedding, \
                np.array(input_pos_test[0:config.weak_test_samples, :]), \
@@ -462,17 +493,29 @@ class DataPrepare:
             matrix_after.append(matrix[i])
         return np.array(matrix_after)
 
-    def read_weak_data(self, dim_1, dim_2, dim_3):
+    def read_weak_data(self, dim_1, dim_2, dim_3, aspect):
         """read weakly data"""
         all_data = []
-        for idx in range(len(dim_1)):
-            items = torch.from_numpy(dim_1[idx])
-            items1 = torch.from_numpy(dim_2[idx])
-            items2 = torch.from_numpy(dim_3[idx])
+        for idx, (sent1, sent2, sent3) in enumerate(zip(dim_1, dim_2, dim_3)):
+            items = torch.from_numpy(sent1)
+            items1 = torch.from_numpy(sent2)
+            items2 = torch.from_numpy(sent3)
+            items3 = torch.from_numpy(aspect[sent1[1]])
+            items4 = torch.from_numpy(aspect[sent2[1]])
+            items5 = torch.from_numpy(aspect[sent3[1]])
+
+            # for idx in range(len(dim_1)):
+            # items = torch.from_numpy(dim_1[idx])
+            # items1 = torch.from_numpy(dim_2[idx])
+            # items2 = torch.from_numpy(dim_3[idx])
+
             data = {
                 'input1': items,
                 'input2': items1,
-                'input3': items2
+                'input3': items2,
+                'aspect1': items3,
+                'aspect2': items4,
+                'aspect3': items5,
             }
             all_data.append(data)
         return all_data
@@ -512,7 +555,7 @@ class DataPrepare:
             wordindex.append(self.vocab[word])
         return length, wordindex
 
-    def clas_sentence2vec(self, sentence, aspect, vocab):
+    def clas_sentence2vec(self, sentence, aspect):
         """serialize sentence"""
         wordindex = []
         aspindex = []
@@ -527,9 +570,12 @@ class DataPrepare:
         length = len(sent_items) - 2
 
         for word in sent_items[2:]:
-            wordindex.append(vocab[word])
+            wordindex.append(self.vocab[word])
         for asp in asp_items:
-            aspindex.append(vocab[asp])
+            if asp in self.vocab:
+                aspindex.append(self.vocab[asp])
+            else:
+                aspindex.append(np.random.randint(len(self.vocab) - 1))  # if not found
         return wordindex, aspindex, length, label, obj
 
     def week_cal_sentence_index(self, input_sent_1, input_sent_2, pairs_pos, pairs_neg):
@@ -559,7 +605,7 @@ class DataPrepare:
         neg_sent = []
         asp_list = []
         for idx, (_, asp) in enumerate(zip(input_sent, input_asp)):
-            wordindex, aspindex, length, label, obj = self.clas_sentence2vec(pairs_clas[idx], asp_clas[idx], self.vocab)
+            wordindex, aspindex, length, label, obj = self.clas_sentence2vec(pairs_clas[idx], asp_clas[idx])
             for i, a_i in enumerate(aspindex):
                 asp[i] = a_i
             asp_list.append(asp)  # a list of a list of aspect index
