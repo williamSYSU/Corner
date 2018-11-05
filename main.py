@@ -19,6 +19,7 @@ class MainInstructor:
     def start_(self):
         """decide train phase"""
         if config.train_phase == 'weakly':
+            # self.create_path()  # create save model path
             self.weak_train()
         elif config.train_phase == 'classify':
             self.clas_train()
@@ -146,6 +147,7 @@ if __name__ == "__main__":
     parser.add_argument('-lambda_', default=1)
     parser.add_argument('-neg_size', default=config.neg_size)
     parser.add_argument('-need_pos', default=config.need_pos)
+    parser.add_argument('-if_retain', default=config.if_retain)
     parser.add_argument('-device', type=str, default=config.device)
 
     opt = parser.parse_args()
@@ -163,6 +165,5 @@ if __name__ == "__main__":
     Begin sentiment Classification learning
     '''
     inst = MainInstructor()
-    inst.create_path()  # create save model path
     inst.start_()
     print('total costs {}s'.format(int(time.time() - now1)))

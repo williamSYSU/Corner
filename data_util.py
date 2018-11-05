@@ -76,18 +76,18 @@ class DataPrepare:
         # self.pairs_neg = [self.normalizeString(s) for s in tqdm(lines_neg)]
         # self.pairs_classifier = [self.normalizeString(s) for s in tqdm(lines)]
         # self.pairs_all = open('data/nor_data/nor_all.csv', 'r').read().strip().split('\n')
-        tmp = open('data/final_aspect_data/final_aspect_pos.csv',
+        tmp = open('data/weak_comb_data/comb_pos{}.csv'.format('_retain' if config.if_retain else ''),
                    'r').read().strip().split('\n')
         self.pairs_pos = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
         self.asp_pos = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
 
-        tmp = open('data/final_aspect_data/final_aspect_neg.csv',
+        tmp = open('data/weak_comb_data/comb_neg{}.csv'.format('_retain' if config.if_retain else ''),
                    'r').read().strip().split('\n')
         self.pairs_neg = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
         self.asp_neg = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
 
         # tmp = open('data/clas_aspect.csv', 'r').read().strip().split('\n')
-        tmp = open('data/final_aspect_data/final_aspect_clas_retain.csv',
+        tmp = open('data/weak_comb_data/comb_clas.csv'.format('_retain' if config.if_retain else ''),
                    'r').read().strip().split('\n')
         self.pairs_clas = [tmp[i] for i in range(len(tmp)) if i % 2 == 0]
         self.asp_clas = [tmp[i] for i in range(len(tmp)) if i % 2 == 1]
@@ -184,7 +184,7 @@ class DataPrepare:
 
         vocab, pairs_pos, pairs_neg, asp_pos, asp_neg = self.weakly_data
 
-        final_embedding = np.array(np.load("embed/Vector_word_embedding_all.npy"))
+        final_embedding = np.array(np.load("embed/Vector_word_embedding_all_update.npy"))
 
         '''initialize sentence'''
         input_sen_1 = config.pad_idx + np.zeros((len(pairs_pos), config.maxlen))
@@ -193,9 +193,9 @@ class DataPrepare:
         input_sen_2 = input_sen_2.astype(np.int)
 
         '''initialize aspects of sentence'''
-        input_asp_1 = config.pad_idx + np.zeros((len(pairs_pos), 3))
+        input_asp_1 = config.pad_idx + np.zeros((len(pairs_pos), config.maxlen_asp))
         input_asp_1 = input_asp_1.astype(np.int)
-        input_asp_2 = config.pad_idx + np.zeros((len(pairs_neg), 3))
+        input_asp_2 = config.pad_idx + np.zeros((len(pairs_neg), config.maxlen_asp))
         input_asp_2 = input_asp_2.astype(np.int)
 
         '''a list of aspects of all sentences'''
@@ -216,15 +216,15 @@ class DataPrepare:
             asp_items = aspect.strip().split()
             length = len(sent_items)
             for word in sent_items:
-                if word in self.vocab:
-                    wordindex.append(self.vocab[word])
-                else:
-                    wordindex.append(np.random.randint(len(self.vocab) - 1))  # if not found
+                # if word in self.vocab:
+                wordindex.append(self.vocab[word])
+                # else:
+                #     wordindex.append(np.random.randint(len(self.vocab) - 1))  # if not found
             for asp in asp_items:
-                if asp in self.vocab:
-                    aspindex.append(self.vocab[asp])
-                else:
-                    aspindex.append(np.random.randint(len(self.vocab) - 1))  # if not found
+                # if asp in self.vocab:
+                aspindex.append(self.vocab[asp])
+                # else:
+                #     aspindex.append(np.random.randint(len(self.vocab) - 1))  # if not found
             return length, wordindex, aspindex
 
         def cal_sentence_index():
@@ -294,7 +294,7 @@ class DataPrepare:
         print("Classification data Process...")
 
         vocab, pairs_clas, asp_clas = self.classification_data
-        final_embedding = np.array(np.load("embed/Vector_word_embedding_all.npy"))
+        final_embedding = np.array(np.load("embed/Vector_word_embedding_all_update.npy"))
 
         # maxlen = 0
         # max_items = []
@@ -306,7 +306,7 @@ class DataPrepare:
         input_sent = config.pad_idx + np.zeros(
             (len(pairs_clas), 204))  # max length of sentence: 200, 4 for extra info
         input_sent = input_sent.astype(np.int)
-        input_asp = config.pad_idx + np.zeros((len(pairs_clas), 3))  # max length of aspect: 3
+        input_asp = config.pad_idx + np.zeros((len(pairs_clas), config.maxlen_asp))  # max length of aspect: 3
         input_asp = input_asp.astype(np.int)
 
         if config.need_pos is True:
@@ -323,9 +323,9 @@ class DataPrepare:
         '''obtain train, valid, test data'''
         pos_sent = np.array(pos_sent)
         neg_sent = np.array(neg_sent)
-        np.random.seed(1)
+        # np.random.seed(1)
         np.random.shuffle(pos_sent)
-        np.random.seed(1)
+        # np.random.seed(1)
         np.random.shuffle(neg_sent)
 
         pos_sentence_train = pos_sent[:int(len(pos_sent) * config.clas_sr), :]
@@ -346,8 +346,8 @@ class DataPrepare:
         np.random.shuffle(input_valid)
         np.random.shuffle(input_test)
 
-        '''initialize unknown word embedding'''
-        add = np.zeros(300)
+        '''initialize pad word embedding'''
+        add = np.zeros(config.embed_dim)  # pad embedding
         final_embedding = np.row_stack((final_embedding, add))
 
         # [:, 2:]: ignore first two element
@@ -423,9 +423,8 @@ class DataPrepare:
 
     def saveVocab(self, filename, mode='w'):
         """save embedding vocab into local files"""
-        if config.pp_data_clas:
-            import gensim
-        model = gensim.models.KeyedVectors.load_word2vec_format('D:/GoogleNews-vectors-negative300.bin',
+        import gensim
+        model = gensim.models.KeyedVectors.load_word2vec_format('data/GoogleNews-vectors-negative300.bin',
                                                                 binary=True)
         # spell = SpellChecker()
         spell = None
@@ -570,12 +569,15 @@ class DataPrepare:
         length = len(sent_items) - 2
 
         for word in sent_items[2:]:
+            # if word in self.vocab:
             wordindex.append(self.vocab[word])
+            # else:
+            #     wordindex.append(np.random.randint(len(self.vocab) - 1))
         for asp in asp_items:
-            if asp in self.vocab:
-                aspindex.append(self.vocab[asp])
-            else:
-                aspindex.append(np.random.randint(len(self.vocab) - 1))  # if not found
+            # if asp in self.vocab:
+            aspindex.append(self.vocab[asp])
+            # else:
+            #     aspindex.append(np.random.randint(len(self.vocab) - 1))  # if not found
         return wordindex, aspindex, length, label, obj
 
     def week_cal_sentence_index(self, input_sent_1, input_sent_2, pairs_pos, pairs_neg):
@@ -796,7 +798,7 @@ class DataPrepare:
 
     def load_word_vocab(self):
         """load self.vocab from file"""
-        vocab_filename = 'data/vocab.txt'
+        vocab_filename = 'data/vocab_update.txt'
         with open(vocab_filename, 'r') as file:
             return eval(file.read())
 
