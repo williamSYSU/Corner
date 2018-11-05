@@ -344,7 +344,8 @@ def get_sent_aspect(freq_set, infreq_set, support_data, sent_data):
 
 
 if __name__ == '__main__':
-    tag = ['pos', 'neg', 'clas']
+    # tag = ['pos', 'neg', 'clas']
+    tag = ['clas']
     k = 2
     select = None  # None: select all
     min_support = 0.002
@@ -354,9 +355,12 @@ if __name__ == '__main__':
     neg_sent, neg_pos, neg_data_set = load_data_set('neg', select)
     clas_sent, clas_pos, clas_data_set = load_data_set('clas', select)
 
-    all_sent = pos_sent + neg_sent + clas_sent
-    all_pos = pos_pos + neg_pos + clas_pos
-    data_set = pos_data_set + neg_data_set + clas_data_set
+    # all_sent = pos_sent + neg_sent + clas_sent
+    # all_pos = pos_pos + neg_pos + clas_pos
+    # data_set = pos_data_set + neg_data_set + clas_data_set
+    all_sent = pos_sent
+    all_pos = pos_pos
+    data_set = pos_data_set
 
     print('=' * 100)
     print('Begin generate Lk')
@@ -402,18 +406,20 @@ if __name__ == '__main__':
     print('=' * 100)
     print('Begin extract aspect...')
     for t in tag:
-        aspect_file = 'data/{}_aspect.csv'.format(t)
+        nor_file = 'data/nor_data/nor_{}.csv'.format(t)
+        aspect_file = 'data/aspect_data/aspect_{}.csv'.format(t)
         if t == 'pos':
-            save_sent = pos_sent
+            # save_sent = pos_sent
             save_data_set = pos_data_set
         elif t == 'neg':
-            save_sent = neg_sent
+            # save_sent = neg_sent
             save_data_set = neg_data_set
         else:
-            save_sent = clas_sent
+            # save_sent = clas_sent
             save_data_set = clas_data_set
         with open(aspect_file, 'w') as file:
-            for sent, sent_data in tqdm(zip(save_sent, save_data_set)):
+            nor_sent = open(nor_file, 'r').read().strip().split('\n')
+            for sent, sent_data in tqdm(zip(nor_sent, save_data_set)):
                 aspect = get_sent_aspect(Lk, infreq_set, support_data, sent_data)
                 file.write(sent + '\n')
                 file.write('\t'.join(aspect) + '\n')

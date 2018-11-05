@@ -19,7 +19,7 @@ class MainInstructor:
     def start_(self):
         """decide train phase"""
         if config.train_phase == 'weakly':
-            # self.create_path()  # create save model path
+            self.create_path()  # create save model path
             self.weak_train()
         elif config.train_phase == 'classify':
             self.clas_train()

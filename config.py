@@ -54,9 +54,9 @@ CRITERION_CHO = {
 clas_lr = 0.0001
 weak_lr = 0.0001
 epoch = 30
-batch_size = 128
+batch_size = 8
 optimizer = OPTIM_CHO['sgd']
-criterion = CRITERION_CHO['tri_marginloss']
+criterion = CRITERION_CHO['cross_entropy']
 margin = 4.0
 margin_p = 2
 valid_step = 2
@@ -64,10 +64,11 @@ valid_thres = 1.13
 
 save_mode = 'best'
 train_type = ''
-train_phase = 'weakly'  # choices: ['weakly', 'classify', 'aspect', 'ae_apriori']
+train_phase = 'classify'  # choices: ['weakly', 'classify', 'aspect', 'ae_apriori']
 # clas_model = CLAS_MODEL_CHO[train_phase]
 lambda_ = 1
-pretrained_model = 'pretrainmodel/weakly/retain1/model_loss_0.91601valid_1.2928.pkl'
+# pretrained_model = 'pretrainmodel/weakly/retain1/model_loss_0.91601valid_1.2928.pkl'
+pretrained_model = 'pretrainmodel/every2/every2_loss_1.65873valid_1.20795.pkl'
 
 '''model parms'''
 d_input = 512

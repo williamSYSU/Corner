@@ -188,7 +188,7 @@ def repeat_asp_sent(if_retain=False):
                         file.write(i + '\n')
 
 
-def retain_asp_sent():
+def retain_asp_sent_with_noun():
     tag = ['pos', 'neg', 'clas']
     for t in tag:
         raw_file = 'data/clean_data/clean_{}.csv'.format(t)
@@ -209,6 +209,12 @@ def retain_asp_sent():
                     file.write(data + '\n')
                 else:
                     file.write(raw_data[idx] + '\n')
+
+
+def retain_asp_sent_with_label():
+    tag = ['pos', 'neg', 'clas']
+    for t in tag:
+        raw_file = 'data/'
 
 
 if __name__ == '__main__':

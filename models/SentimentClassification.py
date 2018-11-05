@@ -17,7 +17,7 @@ class WdeRnnEncoder(nn.Module):
         super(WdeRnnEncoder, self).__init__()
         self.hidden_size = hidden_size
         self.blstm = nn.LSTM(hidden_size, 300, bidirectional=True, batch_first=True)
-        self.embedded = nn.Embedding.from_pretrained(embed, freeze=False)
+        self.embedded_ = nn.Embedding.from_pretrained(embed, freeze=False)
         # self.aspect_embed = nn.Embedding.from_pretrained(trained_aspect)
         self.tanh = nn.Tanh()
         self.hidden_layer = nn.Linear(hidden_size * 2, hidden_size)
@@ -50,7 +50,7 @@ class WdeRnnEncoder(nn.Module):
         _, desorted_indices = torch.sort(indices, descending=False)
         input_index = input_index[:, 0: sorted_seq_lengths[0]]
         input_index = input_index[indices]
-        input_value = self.embedded(input_index)
+        input_value = self.embedded_(input_index)
         input_value = input_value.float()
         packed_inputs = nn.utils.rnn.pack_padded_sequence(input_value, sorted_seq_lengths.cpu().data.numpy()
                                                           , batch_first=True)
@@ -75,7 +75,7 @@ class WdeRnnEncoder(nn.Module):
         # context_input = self.min_context(context_input)
 
         # aspect from Apriori algorithm
-        context_embed = self.embedded(aspect).float()
+        context_embed = self.embedded_(aspect).float()
         context_mean = self.aspect_mean(context_embed)
         # context_mean = torch.zeros(config.batch_size, 300).to(config.device)
         context_input = self.min_context(context_mean)
